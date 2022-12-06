@@ -924,9 +924,17 @@ type UserID struct {
 
 func (u *UserID) Next() *UserID {
 	if u.u.next == nil {
-		return nil
+		return nil /* this crashes in the calling function on assignment */
 	}
 	return &UserID{u: u.u.next, parent: u.parent}
+}
+
+func (u *UserID) HasNext() bool {
+	return u.u.next != nil
+	/* if u.u.next == nil {
+		return false
+	}
+	return true */
 }
 
 func (u *UserID) Revoked() bool {
