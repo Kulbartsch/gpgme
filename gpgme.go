@@ -566,6 +566,22 @@ func (c *Context) Sign(signers []*Key, plain, sig *Data, mode SigMode) error {
 	return err
 }
 
+func (c *Context) EncryptSign(recipients []*Key, flags EncryptFlag, plaintext, ciphertext *Data) error {
+	size := unsafe.Sizeof(new(C.gpgme_key_t))
+	recp := C.calloc(C.size_t(len(recipients)+1), C.size_t(size))
+	defer C.free(recp)
+	for i := range recipients {
+		ptr := (*C.gpgme_key_t)(unsafe.Pointer(uintptr(recp) + size*uintptr(i)))
+		*ptr = recipients[i].k
+	}
+	err := C.gpgme_op_encrypt_sign(c.ctx, (*C.gpgme_key_t)(recp), C.gpgme_encrypt_flags_t(flags), plaintext.dh, ciphertext.dh)
+	runtime.KeepAlive(c)
+	runtime.KeepAlive(recipients)
+	runtime.KeepAlive(plaintext)
+	runtime.KeepAlive(ciphertext)
+	return handleError(err)
+}
+
 type AssuanDataCallback func(data []byte) error
 type AssuanInquireCallback func(name, args string) error
 type AssuanStatusCallback func(status, args string) error
@@ -851,6 +867,15 @@ func (k *Key) UserIDs() *UserID {
 		return nil
 	}
 	return &UserID{u: uids, parent: k} // The parent: k reference ensures uids remains valid
+}
+
+func (k *Key) HasUserIDs() bool {
+	uids := k.k.uids
+	runtime.KeepAlive(k)
+	if uids == nil {
+		return false
+	}
+	return true
 }
 
 func (k *Key) KeyListMode() KeyListMode {
