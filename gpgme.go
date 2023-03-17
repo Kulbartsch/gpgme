@@ -389,6 +389,14 @@ func (c *Context) EngineInfo() *EngineInfo {
 	return res
 }
 
+// set key for signing
+func (c *Context) SignersAdd(key *Key) error {
+	err := handleError(C.gpgme_signers_add(c.ctx, key.k))
+	runtime.KeepAlive(c)
+	runtime.KeepAlive(key)
+	return err
+}
+
 func (c *Context) SetEngineInfo(proto Protocol, fileName, homeDir string) error {
 	var cfn, chome *C.char
 	if fileName != "" {
