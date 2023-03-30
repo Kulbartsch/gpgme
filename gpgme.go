@@ -233,6 +233,16 @@ func SetEngineInfo(proto Protocol, fileName, homeDir string) error {
 	return handleError(C.gpgme_set_engine_info(C.gpgme_protocol_t(proto), cfn, chome))
 }
 
+func GetDirInfo(what string) string {
+	var cWhat *C.char
+	if what != "" {
+		cWhat = C.CString(what)
+		defer C.free(unsafe.Pointer(cWhat))
+	}
+	cDir := C.gpgme_get_dirinfo(cWhat)
+	return C.GoString(cDir)
+}
+
 func FindKeys(pattern string, secretOnly bool) ([]*Key, error) {
 	var keys []*Key
 	ctx, err := New()
@@ -880,10 +890,7 @@ func (k *Key) UserIDs() *UserID {
 func (k *Key) HasUserIDs() bool {
 	uids := k.k.uids
 	runtime.KeepAlive(k)
-	if uids == nil {
-		return false
-	}
-	return true
+	return uids != nil
 }
 
 func (k *Key) KeyListMode() KeyListMode {

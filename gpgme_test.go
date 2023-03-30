@@ -345,6 +345,21 @@ func TestContext_Export(t *testing.T) {
 	}
 }
 
+func TestGetDirInfo(t *testing.T) {
+	dir := GetDirInfo("dirmngr-socket")
+	if len(dir) < 1 {
+		t.Error("Expected non-empty directory")
+	} else {
+		t.Log("GetDirInfo (dirmngr-socket): " + dir)
+	}
+	dir = GetDirInfo("")
+	t.Log("GetDirInfo (empty): " + dir)
+	if len(dir) != 0 {
+		t.Error("Expected empty result")
+	}
+
+}
+
 func TestContext_AssuanSend(t *testing.T) {
 	// Launch a gpg-agent in daemon mode
 	cmd := exec.Command("gpg-connect-agent", "--verbose", "/bye")
