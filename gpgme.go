@@ -81,6 +81,15 @@ const (
 	KeySignForce    KeySignFlag = C.GPGME_KEYSIGN_FORCE
 )
 
+type KeySignFlag uint
+
+const (
+	KeySignLocal    KeySignFlag = C.GPGME_KEYSIGN_LOCAL
+	KeySignLFSep    KeySignFlag = C.GPGME_KEYSIGN_LFSEP
+	KeySignNoExpire KeySignFlag = C.GPGME_KEYSIGN_NOEXPIRE
+	KeySignForce    KeySignFlag = C.GPGME_KEYSIGN_FORCE
+)
+
 type HashAlgo int
 
 // const values for HashAlgo values should be added when necessary.
