@@ -3,3 +3,5 @@ testdata/gpghome/.gpg-v21-migrated
 testdata/gpghome/private-keys-v1.d/
 .ccls-cache/
 .vscode/
+testdata/gpghome/openpgp-revocs.d/
+testdata/gpghome/pubring.gpg~

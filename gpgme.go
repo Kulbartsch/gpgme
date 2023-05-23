@@ -70,6 +70,15 @@ const (
 	EncryptExceptSign  EncryptFlag = C.GPGME_ENCRYPT_EXPECT_SIGN
 )
 
+type KeySignFlag uint
+
+const (
+	KeySignLocal    KeySignFlag = C.GPGME_KEYSIGN_LOCAL
+	KeySignLFSep    KeySignFlag = C.GPGME_KEYSIGN_LFSEP
+	KeySignNoExpire KeySignFlag = C.GPGME_KEYSIGN_NOEXPIRE
+	KeySignForce    KeySignFlag = C.GPGME_KEYSIGN_FORCE
+)
+
 type HashAlgo int
 
 // const values for HashAlgo values should be added when necessary.
@@ -597,6 +606,13 @@ func (c *Context) EncryptSign(recipients []*Key, flags EncryptFlag, plaintext, c
 	runtime.KeepAlive(recipients)
 	runtime.KeepAlive(plaintext)
 	runtime.KeepAlive(ciphertext)
+	return handleError(err)
+}
+
+func (c *Context) KeySign(key Key, u string, expires time.Time, flags KeySignFlag) error {
+	err := C.gpgme_op_keysign(c.ctx, key.k, C.CString(u), C.ulong(expires.Unix()), C.uint(flags))
+	runtime.KeepAlive(c)
+	runtime.KeepAlive(key)
 	return handleError(err)
 }
 

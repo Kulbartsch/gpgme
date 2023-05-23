@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
 
 const (
@@ -228,6 +229,19 @@ func TestContext_Sign(t *testing.T) {
 	if buf.Len() < 1 {
 		t.Error("Expected signed bytes, got empty buffer")
 	}
+}
+
+func TestContext_KeySign(t *testing.T) {
+	ctx, err := New()
+	checkError(t, err)
+
+	key, err := ctx.GetKey("test@example.com", true)
+	checkError(t, err)
+
+	user := "test2@example.com"
+
+	err = ctx.KeySign(*key, user, time.Now().AddDate(2, 0, 0), 0)
+	checkError(t, err)
 }
 
 func TestContext_Verify(t *testing.T) {
