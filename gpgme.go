@@ -638,6 +638,25 @@ func (c *Context) EncryptSign(recipients []*Key, flags EncryptFlag, plaintext, c
 func (c *Context) KeySign(key Key, u string, expires time.Duration, flags KeySignFlag) error {
 	err := C.gpgme_op_keysign(c.ctx, key.k, C.CString(u),
 		C.ulong(uint64(expires.Seconds())), C.uint(flags))
+// KeySign adds a new key signature to the public key *key*.
+//
+// The common case is to use the default key for signing other keys.
+// If another key or more than one key shall be used for a key signature,
+// (Context) SignersAdd can be used.  The user ID to be signed is specified by
+// *u* and must be given verbatim as it appears in the key.
+//
+// The duration to expiration of the signature is specified by *expires*.
+// If *expires* is zero, the default expiration time as defined in gpg.conf
+// with *default-sig-expire* is used.
+// If the flag *KeySignNoExpire* is set the signature will not expire.
+// The flags are used to specify the type of signature to create.
+// The flags can be combined with the bitwise OR operator.
+//
+// HINT: Using an empty string for *u* to createsignatures for all user IDs
+// will only work with gpgme versions younger than 2023-05.
+func (c *Context) KeySign(key Key, u string, expires time.Duration, flags KeySignFlag) error {
+	err := C.gpgme_op_keysign(c.ctx, key.k, C.CString(u),
+		C.ulong(uint64(expires.Seconds())), C.uint(flags))
 	runtime.KeepAlive(c)
 	runtime.KeepAlive(key)
 	return handleError(err)
