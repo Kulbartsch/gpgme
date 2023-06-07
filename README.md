@@ -1,6 +1,6 @@
 # GPGME (golang)
 
-Go wrapper for the GPGME library.
+Go wrapper for the [GPGME library](https://www.gnupg.org/related_software/gpgme/).
 
 This is a fork from [github.com/proglottis/gpgme](https://github.com/proglottis/gpgme).
 
@@ -15,7 +15,7 @@ This fork implements some more GPGME functions.
 ## Documentation
 
 * [godoc](https://pkg.go.dev/github.com/kulbartsch/gpgme)
-
+* [GnuPG GPGME manual](https://www.gnupg.org/documentation/manuals.html)
 
 ## Alternative
 

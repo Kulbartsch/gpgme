@@ -609,8 +609,25 @@ func (c *Context) EncryptSign(recipients []*Key, flags EncryptFlag, plaintext, c
 	return handleError(err)
 }
 
-func (c *Context) KeySign(key Key, u string, expires time.Time, flags KeySignFlag) error {
-	err := C.gpgme_op_keysign(c.ctx, key.k, C.CString(u), C.ulong(expires.Unix()), C.uint(flags))
+// KeySign adds a new key signature to the public key *key*.
+//
+// The common case is to use the default key for signing other keys.
+// If another key or more than one key shall be used for a key signature,
+// (Context) SignersAdd can be used.  The user ID to be signed is specified by
+// *u* and must be given verbatim as it appears in the key.
+//
+// The duration to expiration of the signature is specified by *expires*.
+// If *expires* is zero, the default expiration time as defined in gpg.conf
+// with *default-sig-expire* is used.
+// If the flag *KeySignNoExpire* is set the signature will not expire.
+// The flags are used to specify the type of signature to create.
+// The flags can be combined with the bitwise OR operator.
+//
+// HINT: Using an empty string for *u* to createsignatures for all user IDs
+// will only work with gpgme versions younger than 2023-05.
+func (c *Context) KeySign(key Key, u string, expires time.Duration, flags KeySignFlag) error {
+	err := C.gpgme_op_keysign(c.ctx, key.k, C.CString(u),
+		C.ulong(uint64(expires.Seconds())), C.uint(flags))
 	runtime.KeepAlive(c)
 	runtime.KeepAlive(key)
 	return handleError(err)
@@ -699,9 +716,14 @@ const (
 )
 
 func (c *Context) Export(pattern string, mode ExportModeFlags, data *Data) error {
+	var err error
 	pat := C.CString(pattern)
 	defer C.free(unsafe.Pointer(pat))
-	err := handleError(C.gpgme_op_export(c.ctx, pat, C.gpgme_export_mode_t(mode), data.dh))
+	if data == nil {
+		err = handleError(C.gpgme_op_export(c.ctx, pat, C.gpgme_export_mode_t(mode), nil))
+	} else {
+		err = handleError(C.gpgme_op_export(c.ctx, pat, C.gpgme_export_mode_t(mode), data.dh))
+	}
 	runtime.KeepAlive(c)
 	runtime.KeepAlive(data)
 	return err
@@ -1020,3 +1042,18 @@ func (u *UserID) Comment() string {
 func (u *UserID) Email() string {
 	return C.GoString(u.u.email)
 }
+
+// AddressSpec returns the mail address (called “addr-spec” in RFC-5322) from
+// the string *uid* which is assumed to be a user id (called “address” in
+// RFC-5322).  All plain ASCII characters (i.e. those with bit 7 cleared) in
+// the result are converted to lowercase.  Returns an empty string if no valid
+// address was found
+func AddrspecFromUid(uid string) string {
+	cuid := C.CString(uid)
+	defer C.free(unsafe.Pointer(cuid))
+	// C: char * gpgme_addrspec_from_uid (const char *uid )
+	mail := C.GoString(C.gpgme_addrspec_from_uid(cuid))
+	return mail
+}
+
+// EOF

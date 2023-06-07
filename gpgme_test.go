@@ -240,7 +240,7 @@ func TestContext_KeySign(t *testing.T) {
 
 	user := "test2@example.com"
 
-	err = ctx.KeySign(*key, user, time.Now().AddDate(2, 0, 0), 0)
+	err = ctx.KeySign(*key, user, time.Duration(time.Hour*24*730), 0)
 	checkError(t, err)
 }
 
@@ -410,6 +410,22 @@ func TestContext_AssuanSend(t *testing.T) {
 
 	err = ctx.AssuanSend("KILLAGENT", nil, nil, nil)
 	checkError(t, err)
+}
+
+func TestAddrspecFromUid(t *testing.T) {
+	for _, v := range []struct {
+		uid      string
+		expected string
+	}{
+		{"", ""},
+		{"foo", ""},
+		{"foo <foo@baa.com>", "foo@baa.com"},
+		{"baa@foo.org", "baa@foo.org"},
+	} {
+		if v.expected != AddrspecFromUid(v.uid) {
+			t.Errorf("Unexpected addrspec for %s: %s", v.uid, AddrspecFromUid(v.uid))
+		}
+	}
 }
 
 func isVersion(t testing.TB, version string) bool {
