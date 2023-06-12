@@ -1039,8 +1039,15 @@ func (u *UserID) Comment() string {
 	return C.GoString(u.u.comment)
 }
 
+// Email returns the email address from the user id,
+// when it was enclosed in <angel brackets>.
 func (u *UserID) Email() string {
 	return C.GoString(u.u.email)
+}
+
+// Returns the mail address even if it is without angel brackets.
+func (u *UserID) Address() string {
+	return C.GoString(u.u.address)
 }
 
 // AddressSpec returns the mail address (called “addr-spec” in RFC-5322) from
