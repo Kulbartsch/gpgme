@@ -93,6 +93,7 @@ func newData() *Data {
 // NewData returns a new memory based data buffer
 func NewData() (*Data, error) {
 	d := newData()
+	runtime.KeepAlive(d)
 	return d, handleError(C.gpgme_data_new(&d.dh))
 }
 
@@ -100,6 +101,8 @@ func NewData() (*Data, error) {
 func NewDataFile(f *os.File) (*Data, error) {
 	d := newData()
 	d.r = f
+	runtime.KeepAlive(d)
+	runtime.KeepAlive(f)
 	return d, handleError(C.gpgme_data_new_from_fd(&d.dh, C.int(f.Fd())))
 }
 
@@ -237,3 +240,15 @@ func (d *Data) Name() string {
 	runtime.KeepAlive(d)
 	return res
 }
+
+// NewDataFileName returns a new file name based data buffer
+func (d *Data) DataFromFileName(fn string) error {
+	runtime.KeepAlive(d)
+	cfn := C.CString(fn)
+	res := handleError(C.gpgme_data_new_from_file(&d.dh, cfn, C.int(1)))
+	runtime.KeepAlive(cfn)
+	runtime.KeepAlive(d)
+	return res
+}
+
+// EOF
