@@ -624,11 +624,14 @@ func (c *Context) EncryptSign(recipients []*Key, flags EncryptFlag, plaintext, c
 // The flags are used to specify the type of signature to create.
 // The flags can be combined with the bitwise OR operator.
 //
-// HINT: Using an empty string for *u* to createsignatures for all user IDs
+// HINT: Using an empty string for *u* to create signatures for all user IDs
 // will only work with gpgme versions younger than 2023-05.
 func (c *Context) KeySign(key Key, u string, expires time.Duration, flags KeySignFlag) error {
-	err := C.gpgme_op_keysign(c.ctx, key.k, C.CString(u),
-		C.ulong(uint64(expires.Seconds())), C.uint(flags))
+	cur := C.CString(u)
+	defer C.free(unsafe.Pointer(cur))
+	expiresOn := uint64(time.Now().Add(expires).Unix())
+	err := C.gpgme_op_keysign(c.ctx, key.k, cur,
+		C.ulong(uint64(expiresOn)), C.uint(flags))
 	runtime.KeepAlive(c)
 	runtime.KeepAlive(key)
 	return handleError(err)

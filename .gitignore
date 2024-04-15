@@ -5,3 +5,4 @@ testdata/gpghome/private-keys-v1.d/
 .vscode/
 testdata/gpghome/openpgp-revocs.d/
 testdata/gpghome/pubring.gpg~
+testdata/gpghome/gpg-agent.conf

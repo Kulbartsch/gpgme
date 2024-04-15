@@ -232,15 +232,26 @@ func TestContext_Sign(t *testing.T) {
 }
 
 func TestContext_KeySign(t *testing.T) {
-	ctx, err := New()
-	checkError(t, err)
+	ctx := ctxWithCallback(t)
 
+	// key to sign
+	sKey, err := ctx.GetKey("test2@example.com", false)
+	checkError(t, err)
+	uid := sKey.UserIDs()
+	if uid == nil {
+		t.Fatal("User ID 'test2@example.com' not found")
+	}
+	user := uid.UID()
+	t.Logf("User ID to sign: '%s'", user)
+
+	// signing key
 	key, err := ctx.GetKey("test@example.com", true)
 	checkError(t, err)
+	err = ctx.SignersAdd(key)
+	checkError(t, err)
 
-	user := "test2@example.com"
-
-	err = ctx.KeySign(*key, user, time.Duration(time.Hour*24*730), 0)
+	// sign
+	err = ctx.KeySign(*sKey, user, time.Duration(time.Hour*24*730), 0)
 	checkError(t, err)
 }
 
