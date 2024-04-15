@@ -244,6 +244,38 @@ func SetEngineInfo(proto Protocol, fileName, homeDir string) error {
 	return handleError(C.gpgme_set_engine_info(C.gpgme_protocol_t(proto), cfn, chome))
 }
 
+// GetDirInfo returns a statically allocated string with the value
+// associated to what.  The returned values are the defaults and
+// won’t change even after gpgme_set_engine_info has been used to
+// configure a different engine. NULL is returned if no value is
+// available. Commonly supported values for what are:
+//
+// - "homedir" - Return the default home directory.
+// - "sysconfdir" - Return the name of the system configuration directory
+// - "bindir" - Return the name of the directory with GnuPG program files.
+// - "libdir" - Return the name of the directory with GnuPG related library files.
+// - "libexecdir" - Return the name of the directory with GnuPG helper program files.
+// - "datadir" - Return the name of the directory with GnuPG shared data.
+// - "localedir" - Return the name of the directory with GnuPG locale data.
+// - "socketdir" - Return the name of the directory with the following sockets.
+// - "agent-socket" - Return the name of the socket to connect to the gpg-agent.
+// - "agent-ssh-socket" - Return the name of the socket to connect to the ssh-agent component of gpg-agent.
+// - "dirmngr-socket" - Return the name of the socket to connect to the dirmngr.
+// - "uiserver-socket" - Return the name of the socket to connect to the user interface server.
+// - "gpgconf-name" - Return the file name of the engine configuration tool.
+// - "gpg-name" - Return the file name of the OpenPGP engine.
+// - "gpgsm-name" - Return the file name of the CMS engine.
+// - "g13-name" - Return the name of the file container encryption engine.
+// - "keyboxd-name" - Return the name of the key database daemon.
+// - "agent-name" - Return the name of gpg-agent.
+// - "scdaemon-name" - Return the name of the smart card daemon.
+// - "dirmngr-name" - Return the name of dirmngr.
+// - "pinentry-name" - Return the name of the pinentry program.
+// - "gpg-wks-client-name" - Return the name of the Web Key Service tool.
+// - "gpgtar-name" - Return the name of the gpgtar program.
+//
+// For more information see
+// https://www.gnupg.org/documentation/manuals/gpgme/Engine-Version-Check.html
 func GetDirInfo(what string) string {
 	var cWhat *C.char
 	if what != "" {
