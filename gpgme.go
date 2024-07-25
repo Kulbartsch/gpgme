@@ -135,6 +135,13 @@ const (
 	ValidityUltimate  Validity = C.GPGME_VALIDITY_ULTIMATE
 )
 
+type SignNotationFlags int
+
+const (
+	SignNotationHumanReadable SignNotationFlags = C.GPGME_SIG_NOTATION_HUMAN_READABLE
+	SignNotationCritical      SignNotationFlags = C.GPGME_SIG_NOTATION_CRITICAL
+)
+
 type ErrorCode int
 
 const (
@@ -327,6 +334,8 @@ func Decrypt(r io.Reader) (*Data, error) {
 	_, err = plain.Seek(0, SeekSet)
 	return plain, err
 }
+
+// -- context --
 
 type Context struct {
 	Key      *Key
@@ -840,6 +849,8 @@ func (c *Context) Import(keyData *Data) (*ImportResult, error) {
 	return importResult, nil
 }
 
+// -- key --
+
 type Key struct {
 	k C.gpgme_key_t // WARNING: Call Runtime.KeepAlive(k) after ANY passing of k.k to C
 }
@@ -976,6 +987,8 @@ func (k *Key) KeyListMode() KeyListMode {
 	return res
 }
 
+// -- subkey --
+
 type SubKey struct {
 	k      C.gpgme_subkey_t
 	parent *Key // make sure the key is not released when we have a reference to a subkey
@@ -1034,6 +1047,8 @@ func (k *SubKey) CardNumber() string {
 	return C.GoString(k.k.card_number)
 }
 
+// -- User ID --
+
 type UserID struct {
 	u      C.gpgme_user_id_t
 	parent *Key // make sure the key is not released when we have a reference to a user ID
@@ -1048,10 +1063,6 @@ func (u *UserID) Next() *UserID {
 
 func (u *UserID) HasNext() bool {
 	return u.u.next != nil
-	/* if u.u.next == nil {
-		return false
-	}
-	return true */
 }
 
 func (u *UserID) Revoked() bool {
@@ -1088,6 +1099,183 @@ func (u *UserID) Email() string {
 func (u *UserID) Address() string {
 	return C.GoString(u.u.address)
 }
+
+// -- UserID Signature --
+
+// HasSig returns true if the user ID has at least one signature.
+func (u *UserID) HasSig() bool {
+	return u.u.signatures != nil
+}
+
+// A signature on a user ID.
+// This structure shall be considered read-only and an application
+// must not allocate such a structure on its own.
+// The structure is defined in gpgme.h
+type KeySig struct {
+	ks     C.gpgme_key_sig_t // WARNING: Call Runtime.KeepAlive(ks) after ANY passing of k.k to C
+	parent *Key              // make sure the key is not released when we have a reference to a user ID
+}
+
+// Signature returns the pointer to the first signature on the user ID.
+func (u *UserID) Signatures() *KeySig {
+	sigs := u.u.signatures
+	runtime.KeepAlive(u)
+	if sigs == nil {
+		return nil
+	}
+	return &KeySig{ks: sigs, parent: u.parent} // The parent: k reference ensures sig remains valid
+}
+
+// HasNext returns true if there is another signature on the user ID.
+func (s *KeySig) HasNext() bool {
+	return s.ks.next != nil
+}
+
+// Next returns the next signature on the user ID.
+func (s *KeySig) Next() *KeySig {
+	if s.ks.next == nil {
+		return nil
+	}
+	return &KeySig{ks: s.ks.next, parent: s.parent}
+}
+
+// Revoked returns true if the signature is revoked.
+func (s *KeySig) Revoked() bool {
+	return C.key_sig_revoked(s.ks) != 0
+}
+
+// Expired returns true if the signature is expired.
+func (s *KeySig) Expired() bool {
+	return C.key_sig_expired(s.ks) != 0
+}
+
+// Invalid returns true if the signature is invalid.
+func (s *KeySig) Invalid() bool {
+	return C.key_sig_invalid(s.ks) != 0
+}
+
+// Exportable returns true if the signature is exportable.
+func (s *KeySig) Exportable() bool {
+	return C.key_sig_exportable(s.ks) != 0
+}
+
+// KeyID returns the key ID of the signature.
+func (s *KeySig) KeyID() string {
+	return C.GoString(s.ks.keyid)
+}
+
+// Created returns the creation time of the signature.
+func (s *KeySig) Created() time.Time {
+	if s.ks.timestamp <= 0 {
+		return time.Time{}
+	}
+	return time.Unix(int64(s.ks.timestamp), 0)
+}
+
+// Expires returns the expiration time of the signature.
+func (s *KeySig) Expires() time.Time {
+	if s.ks.expires <= 0 {
+		return time.Time{}
+	}
+	return time.Unix(int64(s.ks.expires), 0)
+}
+
+// UID returns the user ID of the signature.
+func (s *KeySig) UID() string {
+	return C.GoString(s.ks.uid)
+}
+
+// Name returns the name of the signatures user ID.
+func (s *KeySig) Name() string {
+	return C.GoString(s.ks.name)
+}
+
+// Email returns the email address from the signatures user id.
+func (s *KeySig) Email() string {
+	return C.GoString(s.ks.email)
+}
+
+// Comment returns the comment of the signatures user ID.
+func (s *KeySig) Comment() string {
+	return C.GoString(s.ks.comment)
+}
+
+// TrustScope returns the trust scope of the trust signature.
+// (the domain the trust signature is valid for)
+func (s *KeySig) TrustScope() string {
+	return C.GoString(s.ks.trust_scope)
+}
+
+// -- key signature notations --
+
+// HasNotation returns true if the key signature has at least one notation.
+func (s *KeySig) HasNotation() bool {
+	return s.ks.notations != nil
+}
+
+// A notation on an user ID signature.
+// This structure shall be considered read-only and an application
+// must not allocate such a structure on its own.
+// The structure is defined in gpgme.h
+type Notation struct {
+	sn     C.gpgme_sig_notation_t // WARNING: Call Runtime.KeepAlive(ns) after ANY passing of ks.ns to C
+	parent *Key                   // make sure the key is not released when we have a reference to a user ID
+}
+
+// Signature returns the pointer to the first signature on the user ID.
+func (s *KeySig) Notations() *Notation {
+	notations := s.ks.notations
+	runtime.KeepAlive(s)
+	if notations == nil {
+		return nil
+	}
+	return &Notation{sn: notations, parent: s.parent} // The parent: k reference ensures sig remains valid
+}
+
+// HasNext returns true if there is another signature on the user ID.
+func (n *Notation) HasNext() bool {
+	return n.sn.next != nil
+}
+
+// Next returns the next signature on the user ID.
+func (n *Notation) Next() *Notation {
+	if n.sn.next == nil {
+		return nil
+	}
+	return &Notation{sn: n.sn.next, parent: n.parent}
+}
+
+// HumanReadable returns true if the notation is human readable.
+func (n *Notation) HumanReadable() bool {
+	return SignNotationFlags(n.sn.flags)&SignNotationHumanReadable != 0
+}
+
+// Critical returns true if the notation is critical.
+func (n *Notation) Critical() bool {
+	return SignNotationFlags(n.sn.flags)&SignNotationCritical != 0
+}
+
+// Name returns the name of the notation as a string, but only
+// if the notation is marked as human readable.
+// (It can still be garbage, because the human readable flag is not trustworthy)
+func (n *Notation) Name() string {
+	if !n.HumanReadable() || n.sn.name == nil || n.sn.name_len == 0 {
+		return ""
+	}
+	return C.GoString(n.sn.name)
+}
+
+// Value returns the name of the notation as a string, but only
+// if the notation is marked as human readable.
+// (It can still be garbage, because the human readable flag is not trustworthy)
+func (n *Notation) Value() string {
+	if !n.HumanReadable() || n.sn.value == nil || n.sn.value_len == 0 {
+		return ""
+	}
+	return C.GoString(n.sn.value)
+}
+
+// -- GPGME helper functions --
 
 // AddressSpec returns the mail address (called “addr-spec” in RFC-5322) from
 // the string *uid* which is assumed to be a user id (called “address” in

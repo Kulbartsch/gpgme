@@ -38,5 +38,9 @@ extern unsigned int subkey_invalid(gpgme_subkey_t k);
 extern unsigned int subkey_secret(gpgme_subkey_t k);
 extern unsigned int uid_revoked(gpgme_user_id_t u);
 extern unsigned int uid_invalid(gpgme_user_id_t u);
+extern unsigned int key_sig_revoked(gpgme_key_sig_t s);
+extern unsigned int key_sig_expired(gpgme_key_sig_t s);
+extern unsigned int key_sig_invalid(gpgme_key_sig_t s);
+extern unsigned int key_sig_exportable(gpgme_key_sig_t s);
 
 #endif

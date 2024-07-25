@@ -101,3 +101,19 @@ unsigned int uid_revoked(gpgme_user_id_t u) {
 unsigned int uid_invalid(gpgme_user_id_t u) {
 	return u->invalid;
 }
+
+unsigned int key_sig_revoked(gpgme_key_sig_t s) {
+	return s->revoked;
+}
+
+unsigned int key_sig_expired(gpgme_key_sig_t s) {
+	return s->expired;
+}
+
+unsigned int key_sig_invalid(gpgme_key_sig_t s) {
+	return s->invalid;
+}
+
+unsigned int key_sig_exportable(gpgme_key_sig_t s) {
+	return s->exportable;
+}
