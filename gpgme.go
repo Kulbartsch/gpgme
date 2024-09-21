@@ -1172,6 +1172,14 @@ func (s *KeySig) Created() time.Time {
 	return time.Unix(int64(s.ks.timestamp), 0)
 }
 
+// DoesExpire checks if an expiration time is set.
+// If the signature does not expire, the function returns false.
+// Internally, the a value of 0 for the expiration time
+// is considered as "does not expire".
+func (s *KeySig) DoesExpire() bool {
+	return s.ks.expires != 0
+}
+
 // Expires returns the expiration time of the signature.
 func (s *KeySig) Expires() time.Time {
 	if s.ks.expires <= 0 {
