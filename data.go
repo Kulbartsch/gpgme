@@ -238,4 +238,18 @@ func (d *Data) DataFromFileName(fn string) error {
 	return res
 }
 
+// SetFileName  sets the file name associated with the data object.
+// The file name will be stored in the output when encrypting or signing the
+// data and will be returned to the user when decrypting or verifying the
+// output data.
+// since: 1.1.0
+func (d *Data) SetFileName(fn string) error {
+	runtime.KeepAlive(d)
+	cfn := C.CString(fn)
+	res := handleError(C.gpgme_data_set_file_name(d.dh, cfn))
+	runtime.KeepAlive(cfn)
+	runtime.KeepAlive(d)
+	return res
+}
+
 // EOF

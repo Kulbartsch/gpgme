@@ -70,6 +70,15 @@ const (
 	EncryptNoEncryptTo EncryptFlag = C.GPGME_ENCRYPT_NO_ENCRYPT_TO
 	EncryptPrepare     EncryptFlag = C.GPGME_ENCRYPT_PREPARE
 	EncryptExceptSign  EncryptFlag = C.GPGME_ENCRYPT_EXPECT_SIGN
+	EncryptNoCompress  EncryptFlag = C.GPGME_ENCRYPT_NO_COMPRESS
+	EncryptSymmetric   EncryptFlag = C.GPGME_ENCRYPT_SYMMETRIC
+	EncryptThrowKeyIDs EncryptFlag = C.GPGME_ENCRYPT_THROW_KEYIDS
+	EncryptWrap        EncryptFlag = C.GPGME_ENCRYPT_WRAP
+	EncryptWantAddress EncryptFlag = C.GPGME_ENCRYPT_WANT_ADDRESS
+	EncryptArchive     EncryptFlag = C.GPGME_ENCRYPT_ARCHIVE
+	EncryptFile        EncryptFlag = C.GPGME_ENCRYPT_FILE // since 1.24.0
+	EncryptAddRecp     EncryptFlag = C.GPGME_ENCRYPT_ADD_RECP
+	EncryptChgRecp     EncryptFlag = C.GPGME_ENCRYPT_CHG_RECP
 )
 
 type KeySignFlag uint
