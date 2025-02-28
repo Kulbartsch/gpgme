@@ -382,6 +382,11 @@ func TestGetDirInfo(t *testing.T) {
 	if len(dir) != 0 {
 		t.Error("Expected empty result")
 	}
+	dir = GetDirInfo("FooBar")
+	t.Log("GetDirInfo (FooBar): " + dir)
+	if len(dir) != 0 {
+		t.Error("Expected empty result")
+	}
 
 }
 

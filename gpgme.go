@@ -158,6 +158,24 @@ const (
 	ErrorEOF     ErrorCode = C.GPG_ERR_EOF
 )
 
+// DataType is used to return the detected type of the content of a data buffer.
+type DataType int
+
+const (
+	TypeInvalid      DataType = C.GPGME_DATA_TYPE_INVALID       // This is returned by gpgme_data_identify if it was not possible to identify the data. Reasons for this might be a non-seekable stream or a memory problem.
+	TypeUnknown      DataType = C.GPGME_DATA_TYPE_UNKNOWN       // The type of the data is not known.
+	TypePGPSigned    DataType = C.GPGME_DATA_TYPE_PGP_SIGNED    // The data is an OpenPGP signed message. This may be a binary signature, a detached one or a cleartext signature.
+	TypePGPEncrypted DataType = C.GPGME_DATA_TYPE_PGP_ENCRYPTED // The data is an OpenPGP encrypted message.
+	TypePGPSignature DataType = C.GPGME_DATA_TYPE_PGP_SIGNATURE // The data is an OpenPGP detached signature.
+	TypePGPOther     DataType = C.GPGME_DATA_TYPE_PGP_OTHER     // This is a generic OpenPGP message. In most cases this will be encrypted data.
+	TypePGPKey       DataType = C.GPGME_DATA_TYPE_PGP_KEY       // This is an OpenPGP key (private or public).
+	TypeCMSSigned    DataType = C.GPGME_DATA_TYPE_CMS_SIGNED    // This is a CMS signed message.
+	TypeCMSEncrypted DataType = C.GPGME_DATA_TYPE_CMS_ENCRYPTED // This is a CMS encrypted (enveloped data) message.
+	TypeCMSOther     DataType = C.GPGME_DATA_TYPE_CMS_OTHER     // This is used for other CMS message types.
+	TypeX509Cert     DataType = C.GPGME_DATA_TYPE_X509_CERT     // The data is a X.509 certificate
+	TypePKCS12       DataType = C.GPGME_DATA_TYPE_PKCS12        // The data is a PKCS#12 message. This is commonly used to exchange private keys for X.509.
+)
+
 // Error is a wrapper for GPGME errors
 type Error struct {
 	err C.gpgme_error_t
@@ -186,6 +204,8 @@ func cbool(b bool) C.int {
 	return 0
 }
 
+// EngineCheckVersion verifies that the engine implementing the Protocol is
+// installed in the expected path and meets the version requirement of GPGME.
 func EngineCheckVersion(p Protocol) error {
 	return handleError(C.gpgme_engine_check_version(C.gpgme_protocol_t(p)))
 }
@@ -238,6 +258,7 @@ func (e *EngineInfo) HomeDir() string {
 	return e.homeDir
 }
 
+// GetEngineInfo returns a structure of EngineInfo
 func GetEngineInfo() (*EngineInfo, error) {
 	var cInfo C.gpgme_engine_info_t
 	err := handleError(C.gpgme_get_engine_info(&cInfo))
@@ -992,6 +1013,12 @@ func (k *Key) HasUserIDs() bool {
 
 func (k *Key) KeyListMode() KeyListMode {
 	res := KeyListMode(k.k.keylist_mode)
+	runtime.KeepAlive(k)
+	return res
+}
+
+func (k *Key) Fingerprint() string {
+	res := C.GoString(k.k.fpr)
 	runtime.KeepAlive(k)
 	return res
 }
