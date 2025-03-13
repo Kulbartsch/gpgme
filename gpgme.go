@@ -287,29 +287,29 @@ func SetEngineInfo(proto Protocol, fileName, homeDir string) error {
 // configure a different engine. NULL is returned if no value is
 // available. Commonly supported values for what are:
 //
-// - "homedir" - Return the default home directory.
-// - "sysconfdir" - Return the name of the system configuration directory
-// - "bindir" - Return the name of the directory with GnuPG program files.
-// - "libdir" - Return the name of the directory with GnuPG related library files.
-// - "libexecdir" - Return the name of the directory with GnuPG helper program files.
-// - "datadir" - Return the name of the directory with GnuPG shared data.
-// - "localedir" - Return the name of the directory with GnuPG locale data.
-// - "socketdir" - Return the name of the directory with the following sockets.
-// - "agent-socket" - Return the name of the socket to connect to the gpg-agent.
-// - "agent-ssh-socket" - Return the name of the socket to connect to the ssh-agent component of gpg-agent.
-// - "dirmngr-socket" - Return the name of the socket to connect to the dirmngr.
-// - "uiserver-socket" - Return the name of the socket to connect to the user interface server.
-// - "gpgconf-name" - Return the file name of the engine configuration tool.
-// - "gpg-name" - Return the file name of the OpenPGP engine.
-// - "gpgsm-name" - Return the file name of the CMS engine.
-// - "g13-name" - Return the name of the file container encryption engine.
-// - "keyboxd-name" - Return the name of the key database daemon.
-// - "agent-name" - Return the name of gpg-agent.
-// - "scdaemon-name" - Return the name of the smart card daemon.
-// - "dirmngr-name" - Return the name of dirmngr.
-// - "pinentry-name" - Return the name of the pinentry program.
-// - "gpg-wks-client-name" - Return the name of the Web Key Service tool.
-// - "gpgtar-name" - Return the name of the gpgtar program.
+//   - "homedir" - Return the default home directory.
+//   - "sysconfdir" - Return the name of the system configuration directory
+//   - "bindir" - Return the name of the directory with GnuPG program files.
+//   - "libdir" - Return the name of the directory with GnuPG related library files.
+//   - "libexecdir" - Return the name of the directory with GnuPG helper program files.
+//   - "datadir" - Return the name of the directory with GnuPG shared data.
+//   - "localedir" - Return the name of the directory with GnuPG locale data.
+//   - "socketdir" - Return the name of the directory with the following sockets.
+//   - "agent-socket" - Return the name of the socket to connect to the gpg-agent.
+//   - "agent-ssh-socket" - Return the name of the socket to connect to the ssh-agent component of gpg-agent.
+//   - "dirmngr-socket" - Return the name of the socket to connect to the dirmngr.
+//   - "uiserver-socket" - Return the name of the socket to connect to the user interface server.
+//   - "gpgconf-name" - Return the file name of the engine configuration tool.
+//   - "gpg-name" - Return the file name of the OpenPGP engine.
+//   - "gpgsm-name" - Return the file name of the CMS engine.
+//   - "g13-name" - Return the name of the file container encryption engine.
+//   - "keyboxd-name" - Return the name of the key database daemon.
+//   - "agent-name" - Return the name of gpg-agent.
+//   - "scdaemon-name" - Return the name of the smart card daemon.
+//   - "dirmngr-name" - Return the name of dirmngr.
+//   - "pinentry-name" - Return the name of the pinentry program.
+//   - "gpg-wks-client-name" - Return the name of the Web Key Service tool.
+//   - "gpgtar-name" - Return the name of the gpgtar program.
 //
 // For more information see
 // https://www.gnupg.org/documentation/manuals/gpgme/Engine-Version-Check.html
@@ -471,6 +471,8 @@ func (c *Context) SetCallback(callback Callback) error {
 	return err
 }
 
+// EngineInfo returns a linked list of type EngineInfo.  Each info structure
+// describes the defaults of one configured backend.
 func (c *Context) EngineInfo() *EngineInfo {
 	cInfo := C.gpgme_ctx_get_engine_info(c.ctx)
 	runtime.KeepAlive(c)
@@ -480,7 +482,7 @@ func (c *Context) EngineInfo() *EngineInfo {
 	return res
 }
 
-// set key for signing
+// SignersAdd sets a key for signing.
 func (c *Context) SignersAdd(key *Key) error {
 	err := handleError(C.gpgme_signers_add(c.ctx, key.k))
 	runtime.KeepAlive(c)
@@ -488,6 +490,14 @@ func (c *Context) SignersAdd(key *Key) error {
 	return err
 }
 
+// SetEngineInfo changes the configuration of the crypto engine implementing
+// the protocol proto for the context.  fileName is the file name of the
+// executable program implementing this protocol, and homeDir is the directory
+// name of the configuration directory for this crypto engine.
+// If homeDir is empty, the engine’s default will be used.
+// Currently this function must be used before starting the first crypto
+// operation.  It is unspecified if and when the changes will take effect if
+// the function is called after starting the first operation on the context.
 func (c *Context) SetEngineInfo(proto Protocol, fileName, homeDir string) error {
 	var cfn, chome *C.char
 	if fileName != "" {
@@ -533,6 +543,10 @@ func (c *Context) KeyListEnd() error {
 	return err
 }
 
+// GetKey fetches the key with the fingerprint (or key ID) from the crypto
+// backend and return it in r key. If secret is true, you get the secret key.
+// The currently active keylist mode is used to retrieve the key. The key will
+// have one reference for the user.
 func (c *Context) GetKey(fingerprint string, secret bool) (*Key, error) {
 	key := newKey()
 	cfpr := C.CString(fingerprint)
@@ -551,6 +565,17 @@ func (c *Context) GetKey(fingerprint string, secret bool) (*Key, error) {
 	return key, nil
 }
 
+// Decrypt decrypts the ciphertext or, if a file name is set on the data
+// object, the ciphertext stored in the corresponding file.  The decrypted
+// ciphertext is stored into the data object plain or written to the file set
+// with SetFileName for plaintext.
+// The function returns the error GPG_ERR_NO_ERROR if the ciphertext could be
+// decrypted successfully, GPG_ERR_INV_VALUE if context, cipher or plain is
+// not a valid pointer, GPG_ERR_NO_DATA if cipher does not contain any data to
+// decrypt, GPG_ERR_DECRYPT_FAILED if cipher is not a valid cipher text,
+// GPG_ERR_BAD_PASSPHRASE if the passphrase for the secret key could not be
+// retrieved, and passes through some errors that are reported by the crypto
+// engine support routines.
 func (c *Context) Decrypt(ciphertext, plaintext *Data) error {
 	err := handleError(C.gpgme_op_decrypt(c.ctx, ciphertext.dh, plaintext.dh))
 	runtime.KeepAlive(c)
@@ -559,6 +584,13 @@ func (c *Context) Decrypt(ciphertext, plaintext *Data) error {
 	return err
 }
 
+// DecryptVerify decrypts the ciphertext in the data object ciphertext and
+// stores it into the data object plaintext.
+// If cipher contains signatures, they will be verified.
+// TODO: adapt and check the following regarding the library
+// After the operation completed, gpgme_op_decrypt_result
+// and gpgme_op_verify_result can be used to retrieve more information
+// about the signatures.
 func (c *Context) DecryptVerify(ciphertext, plaintext *Data) error {
 	err := handleError(C.gpgme_op_decrypt_verify(c.ctx, ciphertext.dh, plaintext.dh))
 	runtime.KeepAlive(c)
@@ -567,10 +599,93 @@ func (c *Context) DecryptVerify(ciphertext, plaintext *Data) error {
 	return err
 }
 
+// Recipient is a structure used to store information about the recipient of an
+// decryption operation.
+type Recipient struct {
+	PubkeyAlgo PubkeyAlgo
+	KeyID      string
+	Status     error
+}
+
+// DecryptResultType is a structure that stores the result of a decrypt
+// operation.  After successfully decrypting data, you can retrieve the
+// result with DecryptResult.
+type DecryptResultType struct {
+	// If an unsupported algorithm was encountered, this string describes the
+	// algorithm that is not supported.
+	UnsupportedAlgorithm string
+	// This is true if the key was not used according to its policy. (Since GPGME: 0.9.0)
+	WrongKeyUsage bool
+	// The message was made by a legacy algorithm without any integrity
+	// protection (no manipulation detection code).  This might be an old but
+	// legitimate message.  (Since GPGME: 1.11.2)
+	LegacyCipherNoMDC bool
+	// The message claims that the content is a MIME object. (Since GPGME: 1.11.0)
+	IsMIME bool
+	// The message was encrypted in a VS-NfD compliant way. This is a
+	// specification in Germany (DE) for a restricted and EU/NATO RESTRICTED
+	// communication level. (Since GPGME: 1.10.0)
+	IsDEVS bool
+	// The compliance flags (e.g. is de vs) are set but the software has not
+	// yet been approved or is in a beta state. (Since GPGME: 1.24.0)
+	BetaCompliance bool
+	// This is a linked list of recipients to which this message was encrypted.
+	// (Since GPGME: 1.1.0)
+	Recipients []Recipient
+	// This is the filename of the original plaintext message file if it is
+	// known, otherwise this is empty.
+	Filename string
+	// A textual representation of the session key used in symmetric encryption
+	// of the message, if the context has been set to export session keys
+	// [(see gpgme_set_ctx_flag, "export-session-key"),]
+	// and a session key was available for the most recent decryption operation.
+	// Otherwise, this is empty. (Since GPGME: 1.8.0)
+	// [You must not try to access this member of the struct unless
+	// gpgme_set_ctx_flag (ctx, "export-session-key") returns
+	// success or gpgme_get_ctx_flag (ctx, "export-session-key") returns true.]
+	SessionKey string
+	// A string with the symmetric encryption algorithm and mode using the
+	// format "<algo>.<mode>". Note that the deprecated non-MDC encryption
+	// mode of OpenPGP is given as "PGPCFB". (Since GPGME: 1.11.0)
+	SymkeyAlgo string
+}
+
+// DecryptResult
+func (c *Context) DecryptResult() (decrRes DecryptResultType, err error) {
+	res := C.gpgme_op_decrypt_result(c.ctx)
+	if res == nil {
+		return decrRes, fmt.Errorf("gpgme_op_decrypt_result returned nil")
+	}
+	runtime.KeepAlive(c)
+	decrRes.UnsupportedAlgorithm = C.GoString(res.unsupported_algorithm)
+	decrRes.WrongKeyUsage = C.decrypt_result_wrong_key_usage(res) != 0
+	decrRes.LegacyCipherNoMDC = C.decrypt_result_legacy_cipher(res) != 0
+	decrRes.IsMIME = C.decrypt_result_is_mime(res) != 0
+	decrRes.IsDEVS = C.decrypt_result_is_restricted(res) != 0
+	decrRes.BetaCompliance = C.decrypt_result_beta_compliance(res) != 0
+	decrRes.Filename = C.GoString(res.file_name)
+	decrRes.SessionKey = C.GoString(res.session_key)
+	decrRes.SymkeyAlgo = C.GoString(res.symkey_algo)
+
+	// Recipients
+	a := res.recipients
+	for a != nil {
+		rec := Recipient{
+			PubkeyAlgo: PubkeyAlgo(a.pubkey_algo),
+			KeyID:      C.GoString(a.keyid),
+			Status:     handleError(a.status),
+		}
+		decrRes.Recipients = append(decrRes.Recipients, rec)
+		a = a.next
+	}
+	return
+}
+
 type Signature struct {
-	Summary        SigSum
-	Fingerprint    string
-	Status         error
+	Summary     SigSum
+	Fingerprint string
+	Status      error
+	// TODO: notations
 	Timestamp      time.Time
 	ExpTimestamp   time.Time
 	WrongKeyUsage  bool
@@ -582,6 +697,52 @@ type Signature struct {
 	HashAlgo       HashAlgo
 }
 
+// VerifyResult returns results on the last operation on the context,
+// which must have been a verify operation.
+// It returns the filename (string) of the signed file (if any),
+// the signatures (array of type Signature) or an error.
+func (c *Context) VerifyResult() (filename string, sigs []Signature, err error) {
+	res := C.gpgme_op_verify_result(c.ctx)
+	runtime.KeepAlive(c)
+	// sigs := []Signature{}
+	for s := res.signatures; s != nil; s = s.next {
+		sig := Signature{
+			Summary:     SigSum(s.summary),
+			Fingerprint: C.GoString(s.fpr),
+			Status:      handleError(s.status),
+			// TODO: s.notations not implemented
+			Timestamp:      time.Unix(int64(s.timestamp), 0),
+			ExpTimestamp:   time.Unix(int64(s.exp_timestamp), 0),
+			WrongKeyUsage:  C.signature_wrong_key_usage(s) != 0,
+			PKATrust:       uint(C.signature_pka_trust(s)),
+			ChainModel:     C.signature_chain_model(s) != 0,
+			Validity:       Validity(s.validity),
+			ValidityReason: handleError(s.validity_reason),
+			PubkeyAlgo:     PubkeyAlgo(s.pubkey_algo),
+			HashAlgo:       HashAlgo(s.hash_algo),
+		}
+		sigs = append(sigs, sig)
+	}
+	fileName := C.GoString(res.file_name)
+	runtime.KeepAlive(c) // for all accesses to res above
+	return fileName, sigs, nil
+}
+
+// Verfify verifies that the signature in the data object sig is a valid
+// signature.
+// If sig is a detached signature, then the signed text should be provided in
+// signedText and plain should be a pointer. Otherwise, if sig is a normal
+// (or cleartext) signature, signed text should be nil and plain should be a
+// writable data object that will contain the plaintext after successful
+// verification.
+// If a file name is set on the data object sig (or on the data object signed
+// text), then the data of the signature (resp. the data of the signed text)
+// is not read from the data object but from the file with the given file name.
+// If a file name is set on the data object plain then the plaintext is not
+// stored in the data object but it is written to a file with the given
+// filename.
+// Verify returns the filename (string) of the signed file (if any),
+// the signatures (array of type Signature) and an error.
 func (c *Context) Verify(sig, signedText, plain *Data) (string, []Signature, error) {
 	var signedTextPtr, plainPtr C.gpgme_data_t = nil, nil
 	if signedText != nil {
@@ -602,6 +763,15 @@ func (c *Context) Verify(sig, signedText, plain *Data) (string, []Signature, err
 	if err != nil {
 		return "", nil, err
 	}
+
+	fileName, sigs, err := c.VerifyResult()
+	if err != nil {
+		return "", nil, err
+	}
+	runtime.KeepAlive(c) // for all accesses to res above
+	return fileName, sigs, nil
+	/* The following is replaced by the VerifyResult factored out above.
+	   This is kept for reference and will be removed in a future version.
 	res := C.gpgme_op_verify_result(c.ctx)
 	runtime.KeepAlive(c)
 	// NOTE: c must be live as long as we are accessing res.
@@ -625,8 +795,7 @@ func (c *Context) Verify(sig, signedText, plain *Data) (string, []Signature, err
 		sigs = append(sigs, sig)
 	}
 	fileName := C.GoString(res.file_name)
-	runtime.KeepAlive(c) // for all accesses to res above
-	return fileName, sigs, nil
+	*/
 }
 
 func (c *Context) Encrypt(recipients []*Key, flags EncryptFlag, plaintext, ciphertext *Data) error {

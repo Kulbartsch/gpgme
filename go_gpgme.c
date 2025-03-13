@@ -117,3 +117,23 @@ unsigned int key_sig_invalid(gpgme_key_sig_t s) {
 unsigned int key_sig_exportable(gpgme_key_sig_t s) {
 	return s->exportable;
 }
+
+unsigned int decrypt_result_wrong_key_usage(gpgme_decrypt_result_t r) {
+	return r->wrong_key_usage;
+}
+
+unsigned int decrypt_result_legacy_cipher(gpgme_decrypt_result_t r) {
+	return r->legacy_cipher_nomdc;
+}
+
+unsigned int decrypt_result_is_mime(gpgme_decrypt_result_t r) {
+	return r->is_mime;
+}
+
+unsigned int decrypt_result_is_restricted(gpgme_decrypt_result_t r) {
+	return r->is_de_vs;
+}
+
+unsigned int decrypt_result_beta_compliance(gpgme_decrypt_result_t r) {
+	return r->beta_compliance;
+}

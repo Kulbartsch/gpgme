@@ -252,11 +252,11 @@ func (d *Data) SetFileName(fn string) error {
 	return res
 }
 
-// Identify the data buffer
+// Identify the data in the data buffer
 func (d *Data) Identify() DataType {
 	res := DataType(C.gpgme_data_identify(d.dh, 0))
 	runtime.KeepAlive(d)
 	return res
-} /* */
+}
 
 // EOF
