@@ -15,9 +15,9 @@ import (
 )
 
 const (
-	SeekSet = C.SEEK_SET
-	SeekCur = C.SEEK_CUR
-	SeekEnd = C.SEEK_END
+	SeekSet = C.SEEK_SET // Specifies that offset is a count of characters from the beginning of the data object.
+	SeekCur = C.SEEK_CUR // Specifies that offset is a count of characters from the current file position. This count may be positive or negative.
+	SeekEnd = C.SEEK_END // Specifies that offset is a count of characters from the end of the data object. A negative count specifies a position within the current extent of the data object; a positive count specifies a position past the current end. If you set the position past the current end, and actually write data, you will extend the data object with zeros up to that position.
 )
 
 var dataCallbacks = C.struct_gpgme_data_cbs{
@@ -186,6 +186,7 @@ func (d *Data) Write(p []byte) (int, error) {
 	return int(n), nil
 }
 
+// Read reads up to len(p) bytes into p
 func (d *Data) Read(p []byte) (int, error) {
 	var buffer *byte
 	if len(p) > 0 {
@@ -197,7 +198,6 @@ func (d *Data) Read(p []byte) (int, error) {
 	switch {
 	case d.err != nil:
 		defer func() { d.err = nil }()
-
 		return 0, d.err
 	case err != nil:
 		return 0, err
@@ -207,6 +207,9 @@ func (d *Data) Read(p []byte) (int, error) {
 	return int(n), nil
 }
 
+// Seek changes the current read/write position.
+// The whence argument specifies how the offset should be interpreted.
+// It must be one of the following: SeekSet, SeekCur or SeekEnd.
 func (d *Data) Seek(offset int64, whence int) (int64, error) {
 	n, err := C.gogpgme_data_seek(d.dh, C.gpgme_off_t(offset), C.int(whence))
 	runtime.KeepAlive(d)
@@ -219,6 +222,13 @@ func (d *Data) Seek(offset int64, whence int) (int64, error) {
 		return 0, err
 	}
 	return int64(n), nil
+}
+
+// Rewind sets the read/write pointer to the beginning of the data buffer
+func (d *Data) Rewind() error {
+	err := handleError(C.gpgme_data_rewind(d.dh))
+	runtime.KeepAlive(d)
+	return err
 }
 
 // Name returns the associated filename if any

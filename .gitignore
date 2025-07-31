@@ -7,3 +7,4 @@ testdata/gpghome/openpgp-revocs.d/
 testdata/gpghome/pubring.gpg~
 testdata/gpghome/gpg-agent.conf
 _obj/
+,*

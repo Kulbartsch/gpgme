@@ -109,28 +109,54 @@ type PubkeyAlgo int
 
 // const values for PubkeyAlgo values should be added when necessary.
 
+// SigMode is used to specify the type of signature to create.
 type SigMode int
 
 const (
+	// A normal signature is made, the output includes the plaintext and the signature
 	SigModeNormal SigMode = C.GPGME_SIG_MODE_NORMAL
+	// A detached signature is made.
 	SigModeDetach SigMode = C.GPGME_SIG_MODE_DETACH
-	SigModeClear  SigMode = C.GPGME_SIG_MODE_CLEAR
+	// A clear text signature is made.  The ASCII armor and text mode settings
+	// of the context are ignored.
+	SigModeClear SigMode = C.GPGME_SIG_MODE_CLEAR
 )
 
+// SigSum is a bit vector giving a summary of the signature status
 type SigSum int
 
+// This are the bits giving a summary of the signature status.
 const (
-	SigSumValid      SigSum = C.GPGME_SIGSUM_VALID
-	SigSumGreen      SigSum = C.GPGME_SIGSUM_GREEN
-	SigSumRed        SigSum = C.GPGME_SIGSUM_RED
+	// SigSumValid indicates that the signature is fully valid.
+	SigSumValid SigSum = C.GPGME_SIGSUM_VALID
+	// SigSumGreen indicates that the signature is good but one might want to
+	// display some extra information.  Check the other bits.
+	SigSumGreen SigSum = C.GPGME_SIGSUM_GREEN
+	// SigSumRed indicates that signature is bad. It might be useful to check
+	// other bits and display more information, i.e., a revoked certificate
+	// might not render a signature invalid when the message was received
+	// prior to the cause for the revocation.
+	SigSumRed SigSum = C.GPGME_SIGSUM_RED
+	// SigSumKeyRevoked indicates that the key or at least one certificate
+	// has been revoked.
 	SigSumKeyRevoked SigSum = C.GPGME_SIGSUM_KEY_REVOKED
+	// SigSumKeyExpired indicates that the key or one of the certificates has
+	// expired. It is probably a good idea to display the date of the expiration.
 	SigSumKeyExpired SigSum = C.GPGME_SIGSUM_KEY_EXPIRED
+	// SigSumSigExpired indicates that the signature itself has expired.
 	SigSumSigExpired SigSum = C.GPGME_SIGSUM_SIG_EXPIRED
+	// SigSumKeyMissing indicates that the message cannot be verified due to
+	// a missing key or certificate.
 	SigSumKeyMissing SigSum = C.GPGME_SIGSUM_KEY_MISSING
+	// SigSumCRLMissing indicates that the CRL (or an equivalent mechanism)
+	// is not available.
 	SigSumCRLMissing SigSum = C.GPGME_SIGSUM_CRL_MISSING
-	SigSumCRLTooOld  SigSum = C.GPGME_SIGSUM_CRL_TOO_OLD
-	SigSumBadPolicy  SigSum = C.GPGME_SIGSUM_BAD_POLICY
-	SigSumSysError   SigSum = C.GPGME_SIGSUM_SYS_ERROR
+	// SigSumCRLTooOld indicates that the CRL is too old to be used.
+	SigSumCRLTooOld SigSum = C.GPGME_SIGSUM_CRL_TOO_OLD
+	// SigSumBadPolicy indicates that a olicy requirement was not met.
+	SigSumBadPolicy SigSum = C.GPGME_SIGSUM_BAD_POLICY
+	// SigSumSysError indicates that a system error occurred.
+	SigSumSysError SigSum = C.GPGME_SIGSUM_SYS_ERROR
 )
 
 type Validity int
@@ -367,6 +393,7 @@ func Decrypt(r io.Reader) (*Data, error) {
 
 // -- context --
 
+// IDEA: should be named ContextType
 type Context struct {
 	Key      *Key
 	KeyError error
@@ -587,10 +614,8 @@ func (c *Context) Decrypt(ciphertext, plaintext *Data) error {
 // DecryptVerify decrypts the ciphertext in the data object ciphertext and
 // stores it into the data object plaintext.
 // If cipher contains signatures, they will be verified.
-// TODO: adapt and check the following regarding the library
-// After the operation completed, gpgme_op_decrypt_result
-// and gpgme_op_verify_result can be used to retrieve more information
-// about the signatures.
+// After the operation completed, DecryptResult and VerifyResult can be used to
+// retrieve more information about result of the operation.
 func (c *Context) DecryptVerify(ciphertext, plaintext *Data) error {
 	err := handleError(C.gpgme_op_decrypt_verify(c.ctx, ciphertext.dh, plaintext.dh))
 	runtime.KeepAlive(c)
@@ -601,6 +626,7 @@ func (c *Context) DecryptVerify(ciphertext, plaintext *Data) error {
 
 // Recipient is a structure used to store information about the recipient of an
 // decryption operation.
+// IDEA: should be named RecipientType
 type Recipient struct {
 	PubkeyAlgo PubkeyAlgo
 	KeyID      string
@@ -650,7 +676,8 @@ type DecryptResultType struct {
 	SymkeyAlgo string
 }
 
-// DecryptResult
+// DecryptResult returns the result of the last decryption operation on the
+// context.  The result is a structure of type DecryptResultType.
 func (c *Context) DecryptResult() (decrRes DecryptResultType, err error) {
 	res := C.gpgme_op_decrypt_result(c.ctx)
 	if res == nil {
@@ -681,20 +708,59 @@ func (c *Context) DecryptResult() (decrRes DecryptResultType, err error) {
 	return
 }
 
+// Signature is a structure that stores information about a signature
+// that was made on a message.  If the corresponding validation failed,
+// this might be null.
+// IDEA: should be named SignatureType
 type Signature struct {
-	Summary     SigSum
+	// Summary is a bit vector giving a summary of the signature status.
+	// It provides an easy interface to a defined semantic of the signature
+	// status.  Checking just one bit is sufficient to see whether a signature
+	// is valid without any restrictions. This means that you can check for
+	// ...Summary & gpgme.SigSumValid
+	Summary SigSum
+	// Fingerprint of the key that was used to sign the data.
 	Fingerprint string
-	Status      error
+	// Status of the signature.
+	Status error
 	// TODO: notations
-	Timestamp      time.Time
-	ExpTimestamp   time.Time
-	WrongKeyUsage  bool
-	PKATrust       uint
-	ChainModel     bool
-	Validity       Validity
+	// Timestamp of the creation of the signature.
+	Timestamp time.Time
+	// ExpTimestamp is the expiration timestamp of the signature.
+	ExpTimestamp time.Time
+	// WrongKeyUsage is true if the key was not used according to its policy.
+	WrongKeyUsage bool
+	// PKATrust s set to the trust information gained by means of the PKA
+	// system.  Values are
+	//   - 0: No PKA information available or verification not possible.
+	//   - 1: PKA verification failed.
+	//   - 2: PKA verification succeeded.
+	//   - 3: Reserved for future use.
+	PKATrust uint
+	// ChainModel s true if the validity of the signature has been checked using
+	// the chain model. In the chain model the time the signature has been
+	// created must be within the validity period of the certificate and the
+	// time the certificate itself has been created must be within the validity
+	// period of the issuing certificate. In contrast the default validation
+	// model checks the validity of signature as well at the entire certificate
+	// chain at the current time.
+	ChainModel bool
+	// ... is true when signature was created in a VS-NfD compliant way.
+	// This is a specification in Germany for a restricted communication level.
+	// avaiable since: 1.10.0)
+	// TODO: is_de_vs
+	// ...
+	// TODO: beta_compliance
+	// Validity of the signature.
+	Validity Validity
+	// ValidityReason provides a reason why the signature is not valid.
 	ValidityReason error
-	PubkeyAlgo     PubkeyAlgo
-	HashAlgo       HashAlgo
+	// PubkeyAlgo is the public key algorithm used to create the signature.
+	PubkeyAlgo PubkeyAlgo
+	// HashAlgo is the hash algorithm used to create the signature.
+	HashAlgo HashAlgo
+	// TODO: pka_address
+	// TODO: gpgme_key_t
 }
 
 // VerifyResult returns results on the last operation on the context,
@@ -842,13 +908,16 @@ func (c *Context) EncryptSign(recipients []*Key, flags EncryptFlag, plaintext, c
 		ptr := (*C.gpgme_key_t)(unsafe.Pointer(uintptr(recp) + size*uintptr(i)))
 		*ptr = recipients[i].k
 	}
-	err := C.gpgme_op_encrypt_sign(c.ctx, (*C.gpgme_key_t)(recp), C.gpgme_encrypt_flags_t(flags), plaintext.dh, ciphertext.dh)
+	err := C.gpgme_op_encrypt_sign(c.ctx, (*C.gpgme_key_t)(recp),
+		C.gpgme_encrypt_flags_t(flags), plaintext.dh, ciphertext.dh)
 	runtime.KeepAlive(c)
 	runtime.KeepAlive(recipients)
 	runtime.KeepAlive(plaintext)
 	runtime.KeepAlive(ciphertext)
 	return handleError(err)
 }
+
+// TODO: implement gpgme_op_sign_result
 
 // KeySign adds a new key signature to the public key *key*.
 //
