@@ -105,9 +105,22 @@ const (
 	KeyListModeModeValidate KeyListMode = C.GPGME_KEYLIST_MODE_VALIDATE
 )
 
+// PubkeyAlgo is used to specify the public key algorithm used by a key
 type PubkeyAlgo int
 
-// const values for PubkeyAlgo values should be added when necessary.
+// const values for PubkeyAlgo values
+const (
+	PubkeyAlgoRSA   PubkeyAlgo = C.GPGME_PK_RSA   // RSA (Rivest, Shamir, Adleman) algorithm
+	PubkeyAlgoRSAE  PubkeyAlgo = C.GPGME_PK_RSA_E // RSA for encryption and decryption only (deprecated)
+	PubkeyAlgoRSAS  PubkeyAlgo = C.GPGME_PK_RSA_S // RSA for signing and verification only (deprecated)
+	PubkeyAlgoDSA   PubkeyAlgo = C.GPGME_PK_DSA   // DSA (Digital Signature Algorithm)
+	PubkeyAlgoELG   PubkeyAlgo = C.GPGME_PK_ELG   // ElGamal algorithm
+	PubkeyAlgoELGE  PubkeyAlgo = C.GPGME_PK_ELG_E // ElGamal specific to GnuPG
+	PubkeyAlgoECC   PubkeyAlgo = C.GPGME_PK_ECC   // Generic for elliptic curve algorithms (since 1.5.0)
+	PubkeyAlgoECDSA PubkeyAlgo = C.GPGME_PK_ECDSA // ECDSA (Elliptic Curve Digital Signature Algorithm) as defined by FIPS 186-2 and RFC-6637 (since 1.3.0)
+	PubkeyAlgoECDH  PubkeyAlgo = C.GPGME_PK_ECDH  // ECDH (Elliptic Curve Diffie-Hellmann) as defined by RFC-6637 (since 1.3.0)
+	PubkeyAlgoEDDSA PubkeyAlgo = C.GPGME_PK_EDDSA // EdDSA (Edwards-Curve Digital Signature Algorithm) (since 1.7.0)
+)
 
 // SigMode is used to specify the type of signature to create.
 type SigMode int
@@ -207,6 +220,8 @@ type Error struct {
 	err C.gpgme_error_t
 }
 
+// -- helpers --
+
 func (e Error) Code() ErrorCode {
 	return ErrorCode(C.gpgme_err_code(e.err))
 }
@@ -229,6 +244,30 @@ func cbool(b bool) C.int {
 	}
 	return 0
 }
+
+// -- algo helpers --
+
+// PubkeyAlgoName returns the name of the public key algorithm as a string
+// If algo is not a valid public key algorithm, an empty string is returned.
+func PubkeyAlgoName(algo PubkeyAlgo) string {
+	res := C.gpgme_pubkey_algo_name(C.gpgme_pubkey_algo_t(algo))
+	if res == nil {
+		return ""
+	}
+	return C.GoString(res)
+}
+
+// HashAlgoName returns the name of the hash algorithm as a string.
+// If algo is not a valid hash algorithm, an empty string is returned.
+func HashAlgoName(algo HashAlgo) string {
+	res := C.gpgme_hash_algo_name(C.gpgme_hash_algo_t(algo))
+	if res == nil {
+		return ""
+	}
+	return C.GoString(res)
+}
+
+// -- engine info --
 
 // EngineCheckVersion verifies that the engine implementing the Protocol is
 // installed in the expected path and meets the version requirement of GPGME.
@@ -349,6 +388,8 @@ func GetDirInfo(what string) string {
 	return C.GoString(cDir)
 }
 
+// --- high-level functions ---
+
 func FindKeys(pattern string, secretOnly bool) ([]*Key, error) {
 	var keys []*Key
 	ctx, err := New()
@@ -393,7 +434,6 @@ func Decrypt(r io.Reader) (*Data, error) {
 
 // -- context --
 
-// IDEA: should be named ContextType
 type Context struct {
 	Key      *Key
 	KeyError error
@@ -616,6 +656,15 @@ func (c *Context) Decrypt(ciphertext, plaintext *Data) error {
 // If cipher contains signatures, they will be verified.
 // After the operation completed, DecryptResult and VerifyResult can be used to
 // retrieve more information about result of the operation.
+// If the error code NO DATA is returned, cipher does not contain any data to
+// decrypt.  However, it might still be signed.  The information about detected
+// signatures is available with gpgme_op_verify_result in this case.
+// The function returns nil the ciphertext could be decrypted successfully,
+// INV_VALUE if ctx, cipher or plain is not a valid pointer, NO_DATA if cipher
+// does not contain any data to decrypt, DECRYPT_FAILED if cipher is not a
+// valid cipher text, BAD_PASSPHRASE if the passphrase for the secret key could
+// not be retrieved, and passes through any errors that are reported by the
+// crypto engine support routines.
 func (c *Context) DecryptVerify(ciphertext, plaintext *Data) error {
 	err := handleError(C.gpgme_op_decrypt_verify(c.ctx, ciphertext.dh, plaintext.dh))
 	runtime.KeepAlive(c)
@@ -626,7 +675,6 @@ func (c *Context) DecryptVerify(ciphertext, plaintext *Data) error {
 
 // Recipient is a structure used to store information about the recipient of an
 // decryption operation.
-// IDEA: should be named RecipientType
 type Recipient struct {
 	PubkeyAlgo PubkeyAlgo
 	KeyID      string
