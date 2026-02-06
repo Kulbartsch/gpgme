@@ -156,3 +156,37 @@ func (rs errReadSeeker) Read([]byte) (int, error) {
 func (rs errReadSeeker) Seek(int64, int) (int64, error) {
 	return 0, rs.err
 }
+
+/* func TestData_Identify(t *testing.T) {
+	// TODO: Add test - this is a generated stub:
+	type fields struct {
+		dh  C.gpgme_data_t
+		r   io.Reader
+		w   io.Writer
+		s   io.Seeker
+		cbc cgo.Handle
+		err error
+	}
+	tests := []struct {
+		name   string
+		fields fields
+		want   DataType
+	}{
+		// TODO: Add test cases.
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			d := &Data{
+				dh:  tt.fields.dh,
+				r:   tt.fields.r,
+				w:   tt.fields.w,
+				s:   tt.fields.s,
+				cbc: tt.fields.cbc,
+				err: tt.fields.err,
+			}
+			if got := d.Identify(); got != tt.want {
+				t.Errorf("Data.Identify() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+} */

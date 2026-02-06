@@ -1339,6 +1339,32 @@ func (k *SubKey) Invalid() bool {
 	return C.subkey_invalid(k.k) != 0
 }
 
+// CanEncrypt s true if the subkey can be used for encryption.
+func (k *SubKey) CanEncrypt() bool {
+	return C.subkey_can_encrypt(k.k) != 0
+}
+
+// CanSign s true if the subkey can be used to create data signatures.
+func (k *SubKey) CanSign() bool {
+	return C.subkey_can_sign(k.k) != 0
+}
+
+// TODO: implement ...
+// oneSub.CanCertify     bool
+// oneSub.CanAuthenicate bool
+// oneSub.IsQualified    bool
+// oneSub.IsCardkey      bool
+// oneSub.IsDeVS         bool
+// oneSub.CanREnc        bool // since 1.20
+// oneSub.CanTimestamp   bool // since 1.20
+// oneSub.IsGroupOwned   bool // since 1.20
+
+// BetaCompliance The flags (e.g. is de vs) are set but the software
+// has not yet been approved or is in a beta state. (Since: 1.24.0)
+func (k *SubKey) BetaCompliance() bool {
+	return C.subkey_beta_compliance(k.k) != 0
+}
+
 func (k *SubKey) Secret() bool {
 	return C.subkey_secret(k.k) != 0
 }
