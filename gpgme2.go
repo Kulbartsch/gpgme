@@ -11,6 +11,7 @@ import "C"
 import (
 	"fmt"
 	"runtime"
+	"strings"
 	"unsafe"
 )
 
@@ -38,26 +39,21 @@ func (c *Context) RandomBytes(length int) (buffer []byte, err error) {
 	return buffer, nil
 }
 
-// RandomZBase32 returns a random zBase32 string.
-// It will return *zBase32Text* filled with *lenght* random bytes
+// RandomZBase32 returns a random 30 characters long zBase32 string
 // retrieved from gpg. (random mode GPGME_RANDOM_MODE_ZBASE32)
 // The caller must provide a context ctx initialized for
-// GPGME_PROTOCOL_OPENPGP. This function has a limit of 1024 bytes
-// to avoid accidental overuse of the random generator.
+// GPGME_PROTOCOL_OPENPGP.
 // Since gpgme 2.0
-func (c *Context) RandomZBase32(length int) (zBase32Text string, err error) {
-	if length <= 0 || length > 1024 {
-		return "", fmt.Errorf("length must be between 1 and 1024")
-	}
-	buf := make([]byte, length)
+func (c *Context) RandomZBase32() (zBase32Text string, err error) {
+	buf := make([]byte, 31) // 30 characters + null terminator
 	err = handleError(C.gpgme_op_random_bytes(c.ctx,
 		C.GPGME_RANDOM_MODE_ZBASE32,
-		(*C.char)(unsafe.Pointer(&buf[0])), C.size_t(length)))
+		(*C.char)(unsafe.Pointer(&buf[0])), C.size_t(len(buf))))
 	runtime.KeepAlive(c)
 	if err != nil {
 		return "", err
 	}
-	zBase32Text = string(buf)
+	zBase32Text = strings.TrimRight(string(buf), "\x00")
 	return zBase32Text, nil
 }
 
@@ -67,6 +63,12 @@ func (c *Context) RandomZBase32(length int) (zBase32Text string, err error) {
 // provide a context ctx initialized for GPGME_PROTOCOL_OPENPGP.
 // Since gpgme 2.0
 func (c *Context) RandomValue(limit uint32) (value uint32, err error) {
+	if limit <= 0 {
+		return 0, fmt.Errorf("limit must be greater than 0")
+	}
+	if limit == 1 {
+		return 0, nil // Only one possible value, so return it directly
+	}
 	var retval C.ulong
 	err = handleError(C.gpgme_op_random_value(c.ctx, C.ulong(limit), &retval))
 	runtime.KeepAlive(c)
