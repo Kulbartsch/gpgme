@@ -1,3 +1,5 @@
+//go:build gpgme2
+
 package gpgme_test
 
 import (

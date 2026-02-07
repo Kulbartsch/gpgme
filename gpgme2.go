@@ -1,4 +1,6 @@
-// Package gpgme provides a Go wrapper for the GPGME 2 library
+// This file gpgme2.go provides a Go wrapper for the GPGME V2 library
+//go:build gpgme2
+
 package gpgme
 
 // #cgo pkg-config: gpgme

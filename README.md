@@ -11,6 +11,15 @@ This fork implements some more GPGME functions.
 
     go get -u github.com/kulbartsch/gpgme
 
+### Build with GPGME V2 support
+
+GPGME V2 supports the use of GnuPGs secure and certified random number
+generator.
+
+To build with GPGME V2 support, use the following command:
+
+    go build -tags gpgme2
+
 
 ## Documentation
 
