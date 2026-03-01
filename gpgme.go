@@ -1478,9 +1478,17 @@ func (k *SubKey) IsDeVS() bool {
 	return C.subkey_is_de_vs(k.k) != 0
 }
 
-// oneSub.CanREnc        bool // since 1.20
-// oneSub.CanTimestamp   bool // since 1.20
-// oneSub.IsGroupOwned   bool // since 1.20
+func (k *SubKey) CanREnc() bool {
+	return C.subkey_can_renc(k.k) != 0
+}
+
+func (k *SubKey) CanTimestamp() bool {
+	return C.subkey_can_timestamp(k.k) != 0
+}
+
+func (k *SubKey) IsGroupOwned() bool {
+	return C.subkey_is_group_owned(k.k) != 0
+}
 
 // BetaCompliance The flags (e.g. is de vs) are set but the software
 // has not yet been approved or is in a beta state. (Since: 1.24.0)
