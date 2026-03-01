@@ -771,7 +771,7 @@ type Signature struct {
 	Fingerprint string
 	// Status of the signature.
 	Status error
-	// TODO: notations
+	Notations NotationType
 	// Timestamp of the creation of the signature.
 	Timestamp time.Time
 	// ExpTimestamp is the expiration timestamp of the signature.
@@ -793,12 +793,13 @@ type Signature struct {
 	// model checks the validity of signature as well at the entire certificate
 	// chain at the current time.
 	ChainModel bool
-	// ... is true when signature was created in a VS-NfD compliant way.
+	// IsDEvs is true when signature was created in a VS-NfD compliant way.
 	// This is a specification in Germany for a restricted communication level.
-	// avaiable since: 1.10.0)
-	// TODO: is_de_vs
-	// ...
-	// TODO: beta_compliance
+	// Avaiable since: 1.10.0
+	IsDEvs bool
+	// BetaCompliance flags (e.g. IsDEvs) are set but the software has not yet
+	// been approved or is in a beta state. Available since: 1.24.0
+	BetaCompliance bool
 	// Validity of the signature.
 	Validity Validity
 	// ValidityReason provides a reason why the signature is not valid.
@@ -824,12 +825,14 @@ func (c *Context) VerifyResult() (filename string, sigs []Signature, err error) 
 			Summary:     SigSum(s.summary),
 			Fingerprint: C.GoString(s.fpr),
 			Status:      handleError(s.status),
-			// TODO: s.notations not implemented
+			// TODO; Notations:   s.Notations(), //??
 			Timestamp:      time.Unix(int64(s.timestamp), 0),
 			ExpTimestamp:   time.Unix(int64(s.exp_timestamp), 0),
 			WrongKeyUsage:  C.signature_wrong_key_usage(s) != 0,
 			PKATrust:       uint(C.signature_pka_trust(s)),
 			ChainModel:     C.signature_chain_model(s) != 0,
+			IsDEvs:         C.signature_is_de_vs(s) != 0,
+			BetaCompliance: C.signature_beta_compliance(s) != 0,
 			Validity:       Validity(s.validity),
 			ValidityReason: handleError(s.validity_reason),
 			PubkeyAlgo:     PubkeyAlgo(s.pubkey_algo),
@@ -965,7 +968,67 @@ func (c *Context) EncryptSign(recipients []*Key, flags EncryptFlag, plaintext, c
 	return handleError(err)
 }
 
-// TODO: implement gpgme_op_sign_result
+// InvalidKey describes a key that was invalid for an operation.
+type InvalidKey struct {
+	Fingerprint string
+	Reason      error
+}
+
+// NewSignature contains information about a newly created signature.
+type NewSignature struct {
+	// Type is the type of the signature.
+	Type SigMode
+	// PubkeyAlgo is the public key algorithm used to create the signature.
+	PubkeyAlgo PubkeyAlgo
+	// HashAlgo is the hash algorithm used to create the signature.
+	HashAlgo HashAlgo
+	// Timestamp is the creation time of the signature.
+	Timestamp time.Time
+	// Fingerprint is the fingerprint of the key used to create the signature.
+	Fingerprint string
+	// SigClass is the crypto backend specific signature class.
+	SigClass uint
+}
+
+// SignResultType holds the result of a sign operation.
+type SignResultType struct {
+	// InvalidSigners is a list of keys that were invalid for signing.
+	InvalidSigners []InvalidKey
+	// Signatures is a list of newly created signatures.
+	Signatures []NewSignature
+}
+
+// SignResult returns the result of the last signing operation on the context.
+func (c *Context) SignResult() (SignResultType, error) {
+	res := C.gpgme_op_sign_result(c.ctx)
+	if res == nil {
+		return SignResultType{}, fmt.Errorf("gpgme_op_sign_result returned nil")
+	}
+	runtime.KeepAlive(c)
+
+	var result SignResultType
+
+	for ik := res.invalid_signers; ik != nil; ik = ik.next {
+		result.InvalidSigners = append(result.InvalidSigners, InvalidKey{
+			Fingerprint: C.GoString(ik.fpr),
+			Reason:      handleError(ik.reason),
+		})
+	}
+
+	for ns := res.signatures; ns != nil; ns = ns.next {
+		result.Signatures = append(result.Signatures, NewSignature{
+			Type:        SigMode(ns._type),
+			PubkeyAlgo:  PubkeyAlgo(ns.pubkey_algo),
+			HashAlgo:    HashAlgo(ns.hash_algo),
+			Timestamp:   time.Unix(int64(ns.timestamp), 0),
+			Fingerprint: C.GoString(ns.fpr),
+			SigClass:    uint(ns.sig_class),
+		})
+	}
+
+	runtime.KeepAlive(c) // for all accesses to res above
+	return result, nil
+}
 
 // KeySign adds a new key signature to the public key *key*.
 //
@@ -1165,7 +1228,7 @@ func (c *Context) Import(keyData *Data) (*ImportResult, error) {
 	return importResult, nil
 }
 
-// -- key --
+// ----- key -----
 
 type Key struct {
 	k C.gpgme_key_t // WARNING: Call Runtime.KeepAlive(k) after ANY passing of k.k to C
@@ -1395,7 +1458,7 @@ func (k *SubKey) CardNumber() string {
 	return C.GoString(k.k.card_number)
 }
 
-// -- User ID --
+// ----- User ID -----
 
 type UserID struct {
 	u      C.gpgme_user_id_t
@@ -1562,7 +1625,7 @@ func (s *KeySig) TrustScope() string {
 	return C.GoString(s.ks.trust_scope)
 }
 
-// -- key signature notations --
+// ----- key signature notations -----
 
 // HasNotation returns true if the key signature has at least one notation.
 func (s *KeySig) HasNotation() bool {
@@ -1573,48 +1636,48 @@ func (s *KeySig) HasNotation() bool {
 // This structure shall be considered read-only and an application
 // must not allocate such a structure on its own.
 // The structure is defined in gpgme.h
-type Notation struct {
+type NotationType struct {
 	sn     C.gpgme_sig_notation_t // WARNING: Call Runtime.KeepAlive(ns) after ANY passing of ks.ns to C
 	parent *Key                   // make sure the key is not released when we have a reference to a user ID
 }
 
-// Signature returns the pointer to the first signature on the user ID.
-func (s *KeySig) Notations() *Notation {
+// Notations returns the pointer to the first notation on the user ID.
+func (s *KeySig) Notations() *NotationType {
 	notations := s.ks.notations
 	runtime.KeepAlive(s)
 	if notations == nil {
 		return nil
 	}
-	return &Notation{sn: notations, parent: s.parent} // The parent: k reference ensures sig remains valid
+	return &NotationType{sn: notations, parent: s.parent} // The parent: k reference ensures sig remains valid
 }
 
 // HasNext returns true if there is another signature on the user ID.
-func (n *Notation) HasNext() bool {
+func (n *NotationType) HasNext() bool {
 	return n.sn.next != nil
 }
 
 // Next returns the next signature on the user ID.
-func (n *Notation) Next() *Notation {
+func (n *NotationType) Next() *NotationType {
 	if n.sn.next == nil {
 		return nil
 	}
-	return &Notation{sn: n.sn.next, parent: n.parent}
+	return &NotationType{sn: n.sn.next, parent: n.parent}
 }
 
 // HumanReadable returns true if the notation is human readable.
-func (n *Notation) HumanReadable() bool {
+func (n *NotationType) HumanReadable() bool {
 	return SignNotationFlags(n.sn.flags)&SignNotationHumanReadable != 0
 }
 
 // Critical returns true if the notation is critical.
-func (n *Notation) Critical() bool {
+func (n *NotationType) Critical() bool {
 	return SignNotationFlags(n.sn.flags)&SignNotationCritical != 0
 }
 
 // Name returns the name of the notation as a string, but only
 // if the notation is marked as human readable.
 // (It can still be garbage, because the human readable flag is not trustworthy)
-func (n *Notation) Name() string {
+func (n *NotationType) Name() string {
 	if !n.HumanReadable() || n.sn.name == nil || n.sn.name_len == 0 {
 		return ""
 	}
@@ -1624,7 +1687,7 @@ func (n *Notation) Name() string {
 // Value returns the name of the notation as a string, but only
 // if the notation is marked as human readable.
 // (It can still be garbage, because the human readable flag is not trustworthy)
-func (n *Notation) Value() string {
+func (n *NotationType) Value() string {
 	if !n.HumanReadable() || n.sn.value == nil || n.sn.value_len == 0 {
 		return ""
 	}

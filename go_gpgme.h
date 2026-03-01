@@ -31,6 +31,8 @@ extern unsigned int key_is_qualified(gpgme_key_t k);
 extern unsigned int signature_wrong_key_usage(gpgme_signature_t s);
 extern unsigned int signature_pka_trust(gpgme_signature_t s);
 extern unsigned int signature_chain_model(gpgme_signature_t s);
+extern unsigned int signature_is_de_vs(gpgme_signature_t s);
+extern unsigned int signature_beta_compliance(gpgme_signature_t s);
 extern unsigned int subkey_revoked(gpgme_subkey_t k);
 extern unsigned int subkey_expired(gpgme_subkey_t k);
 extern unsigned int subkey_disabled(gpgme_subkey_t k);

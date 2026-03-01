@@ -74,6 +74,14 @@ unsigned int signature_chain_model(gpgme_signature_t s) {
     return s->chain_model;
 }
 
+unsigned int signature_is_de_vs(gpgme_signature_t s) {
+    return s->is_de_vs;
+}
+
+unsigned int signature_beta_compliance(gpgme_signature_t s) {
+    return s->beta_compliance;
+}
+
 unsigned int subkey_revoked(gpgme_subkey_t k) {
 	return k->revoked;
 }
