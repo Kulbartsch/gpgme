@@ -1458,12 +1458,26 @@ func (k *SubKey) CanSign() bool {
 	return C.subkey_can_sign(k.k) != 0
 }
 
-// TODO: implement ...
-// oneSub.CanCertify     bool
-// oneSub.CanAuthenicate bool
-// oneSub.IsQualified    bool
-// oneSub.IsCardkey      bool
-// oneSub.IsDeVS         bool
+func (k *SubKey) CanCertify() bool {
+	return C.subkey_can_certify(k.k) != 0
+}
+
+func (k *SubKey) CanAuthenticate() bool {
+	return C.subkey_can_authenicate(k.k) != 0
+}
+
+func (k *SubKey) IsQualified() bool {
+	return C.subkey_is_qualified(k.k) != 0
+}
+
+func (k *SubKey) IsCardkey() bool {
+	return C.subkey_is_cardkey(k.k) != 0
+}
+
+func (k *SubKey) IsDeVS() bool {
+	return C.subkey_is_de_vs(k.k) != 0
+}
+
 // oneSub.CanREnc        bool // since 1.20
 // oneSub.CanTimestamp   bool // since 1.20
 // oneSub.IsGroupOwned   bool // since 1.20
