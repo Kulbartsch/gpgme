@@ -756,6 +756,20 @@ func (c *Context) DecryptResult() (decrRes DecryptResultType, err error) {
 	return
 }
 
+// SignatureNotation contains a notation or policy URL from a signature.
+type SignatureNotation struct {
+	// Name is the name of the notation (empty for policy URLs).
+	Name string
+	// Value is the value of the notation or the policy URL.
+	Value string
+	// Flags contains the notation flags.
+	Flags SignNotationFlags
+	// HumanReadable is true if the notation is marked as human readable.
+	HumanReadable bool
+	// Critical is true if the notation is marked as critical.
+	Critical bool
+}
+
 // Signature is a structure that stores information about a signature
 // that was made on a message.  If the corresponding validation failed,
 // this might be null.
@@ -771,7 +785,8 @@ type Signature struct {
 	Fingerprint string
 	// Status of the signature.
 	Status error
-	Notations NotationType
+	// Notations is a list of notation data and policy URLs attached to the signature.
+	Notations []SignatureNotation
 	// Timestamp of the creation of the signature.
 	Timestamp time.Time
 	// ExpTimestamp is the expiration timestamp of the signature.
@@ -808,8 +823,11 @@ type Signature struct {
 	PubkeyAlgo PubkeyAlgo
 	// HashAlgo is the hash algorithm used to create the signature.
 	HashAlgo HashAlgo
-	// TODO: pka_address
-	// TODO: gpgme_key_t
+	// PKAAddress is the mailbox from the PKA information or empty if not available.
+	PKAAddress string
+	// Key is, if non-nil, a possible incomplete key object with the data
+	// available for the signature.
+	Key *Key
 }
 
 // VerifyResult returns results on the last operation on the context,
@@ -821,11 +839,29 @@ func (c *Context) VerifyResult() (filename string, sigs []Signature, err error) 
 	runtime.KeepAlive(c)
 	// sigs := []Signature{}
 	for s := res.signatures; s != nil; s = s.next {
+		// Copy notations into Go values
+		var notations []SignatureNotation
+		for n := s.notations; n != nil; n = n.next {
+			flags := SignNotationFlags(n.flags)
+			notation := SignatureNotation{
+				Flags:         flags,
+				HumanReadable: flags&SignNotationHumanReadable != 0,
+				Critical:      flags&SignNotationCritical != 0,
+			}
+			if n.name != nil {
+				notation.Name = C.GoString(n.name)
+			}
+			if n.value != nil {
+				notation.Value = C.GoString(n.value)
+			}
+			notations = append(notations, notation)
+		}
+
 		sig := Signature{
-			Summary:     SigSum(s.summary),
-			Fingerprint: C.GoString(s.fpr),
-			Status:      handleError(s.status),
-			// TODO; Notations:   s.Notations(), //??
+			Summary:        SigSum(s.summary),
+			Fingerprint:    C.GoString(s.fpr),
+			Status:         handleError(s.status),
+			Notations:      notations,
 			Timestamp:      time.Unix(int64(s.timestamp), 0),
 			ExpTimestamp:   time.Unix(int64(s.exp_timestamp), 0),
 			WrongKeyUsage:  C.signature_wrong_key_usage(s) != 0,
@@ -837,7 +873,17 @@ func (c *Context) VerifyResult() (filename string, sigs []Signature, err error) 
 			ValidityReason: handleError(s.validity_reason),
 			PubkeyAlgo:     PubkeyAlgo(s.pubkey_algo),
 			HashAlgo:       HashAlgo(s.hash_algo),
+			PKAAddress:     C.GoString(s.pka_address),
 		}
+
+		// Copy the key reference if available
+		if s.key != nil {
+			k := &Key{k: s.key}
+			C.gpgme_key_ref(s.key)
+			runtime.SetFinalizer(k, (*Key).Release)
+			sig.Key = k
+		}
+
 		sigs = append(sigs, sig)
 	}
 	fileName := C.GoString(res.file_name)

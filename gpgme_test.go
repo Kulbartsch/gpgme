@@ -3,6 +3,7 @@ package gpgme
 import (
 	"bytes"
 	"flag"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"os"
@@ -365,6 +366,7 @@ func TestContext_Verify(t *testing.T) {
 		Summary:        SigSumValid | SigSumGreen,
 		Fingerprint:    "44B646DC347C31E867FF4F450327FFB0229F6136",
 		Status:         nil,
+		Notations:      sig.Notations,    // Ignore in comparison
 		Timestamp:      sig.Timestamp,    // Ignore in comparison
 		ExpTimestamp:   sig.ExpTimestamp, // Ignore in comparison
 		WrongKeyUsage:  false,
@@ -374,8 +376,10 @@ func TestContext_Verify(t *testing.T) {
 		ValidityReason: nil,
 		PubkeyAlgo:     sig.PubkeyAlgo, // Ignore in comparison
 		HashAlgo:       sig.HashAlgo,   // Ignore in comparison
+		PKAAddress:     sig.PKAAddress, // Ignore in comparison
+		Key:            sig.Key,        // Ignore in comparison
 	}
-	if sig != expectedSig {
+	if fmt.Sprintf("%#v", sig) != fmt.Sprintf("%#v", expectedSig) {
 		t.Errorf("Signature verification does not match: %#v vs. %#v", sig, expectedSig)
 	}
 
