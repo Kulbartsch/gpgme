@@ -1557,6 +1557,14 @@ func (u *UserID) Address() string {
 	return C.GoString(u.u.address)
 }
 
+// LastUpdate returns the time of the last update of the user ID.
+func (u *UserID) LastUpdate() time.Time {
+	if u.u.last_update <= 0 {
+		return time.Time{}
+	}
+	return time.Unix(int64(u.u.last_update), 0)
+}
+
 // -- UserID Signature --
 
 // HasSig returns true if the user ID has at least one signature.
@@ -1615,6 +1623,18 @@ func (s *KeySig) Invalid() bool {
 func (s *KeySig) Exportable() bool {
 	return C.key_sig_exportable(s.ks) != 0
 }
+
+/* TODO:
+// trust_depth of a trust signature, or 0 if the key signature is not a
+// trust signature.
+unsigned int trust_depth : 8
+
+// trust_value is the trust amount of a trust signature.
+unsigned int trust_value : 8
+
+// pubkey_algo is the public key algorithm used to create the signature.
+gpgme_pubkey_algo_t pubkey_algo
+*/
 
 // KeyID returns the key ID of the signature.
 func (s *KeySig) KeyID() string {
