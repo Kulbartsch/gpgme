@@ -229,6 +229,90 @@ func TestContext_Sign(t *testing.T) {
 	if buf.Len() < 1 {
 		t.Error("Expected signed bytes, got empty buffer")
 	}
+
+	// Test SignResult
+	signRes, err := ctx.SignResult()
+	checkError(t, err)
+
+	if len(signRes.InvalidSigners) != 0 {
+		t.Errorf("Expected no invalid signers, got %d", len(signRes.InvalidSigners))
+	}
+	if len(signRes.Signatures) != 1 {
+		t.Fatalf("Expected 1 new signature, got %d", len(signRes.Signatures))
+	}
+
+	newSig := signRes.Signatures[0]
+	if newSig.Type != SigModeNormal {
+		t.Errorf("Expected SigModeNormal, got %d", newSig.Type)
+	}
+	if newSig.Fingerprint == "" {
+		t.Error("Expected non-empty fingerprint in sign result")
+	}
+	if newSig.Timestamp.IsZero() {
+		t.Error("Expected non-zero timestamp in sign result")
+	}
+	t.Logf("SignResult: fingerprint=%s, algo=%s, hash=%s, class=%d",
+		newSig.Fingerprint,
+		PubkeyAlgoName(newSig.PubkeyAlgo),
+		HashAlgoName(newSig.HashAlgo),
+		newSig.SigClass)
+}
+
+func TestContext_SignResult(t *testing.T) {
+	ctx, err := New()
+	checkError(t, err)
+	defer ctx.Release()
+
+	checkError(t, ctx.SetPinEntryMode(PinEntryLoopback))
+	checkError(t, ctx.SetCallback(func(uid_hint string, prev_was_bad bool, f *os.File) error {
+		_, err := io.WriteString(f, "password\n")
+		return err
+	}))
+
+	key, err := ctx.GetKey("test@example.com", true)
+	checkError(t, err)
+
+	plain, err := NewDataBytes([]byte(testData))
+	checkError(t, err)
+
+	var buf bytes.Buffer
+	signed, err := NewDataWriter(&buf)
+	checkError(t, err)
+
+	checkError(t, ctx.Sign([]*Key{key}, plain, signed, SigModeDetach))
+
+	signRes, err := ctx.SignResult()
+	checkError(t, err)
+
+	if len(signRes.InvalidSigners) != 0 {
+		t.Errorf("Expected no invalid signers, got %d", len(signRes.InvalidSigners))
+	}
+	if len(signRes.Signatures) != 1 {
+		t.Fatalf("Expected 1 new signature, got %d", len(signRes.Signatures))
+	}
+
+	newSig := signRes.Signatures[0]
+	if newSig.Type != SigModeDetach {
+		t.Errorf("Expected SigModeDetach (%d), got %d", SigModeDetach, newSig.Type)
+	}
+	if newSig.Fingerprint == "" {
+		t.Error("Expected non-empty fingerprint in sign result")
+	}
+	if newSig.Timestamp.IsZero() {
+		t.Error("Expected non-zero timestamp in sign result")
+	}
+	if PubkeyAlgoName(newSig.PubkeyAlgo) == "" {
+		t.Error("Expected valid pubkey algorithm")
+	}
+	if HashAlgoName(newSig.HashAlgo) == "" {
+		t.Error("Expected valid hash algorithm")
+	}
+	t.Logf("SignResult: fingerprint=%s, algo=%s, hash=%s, type=%d, class=%d",
+		newSig.Fingerprint,
+		PubkeyAlgoName(newSig.PubkeyAlgo),
+		HashAlgoName(newSig.HashAlgo),
+		newSig.Type,
+		newSig.SigClass)
 }
 
 func TestContext_KeySign(t *testing.T) {
