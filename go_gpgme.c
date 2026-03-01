@@ -74,6 +74,14 @@ unsigned int signature_chain_model(gpgme_signature_t s) {
     return s->chain_model;
 }
 
+unsigned int signature_is_de_vs(gpgme_signature_t s) {
+    return s->is_de_vs;
+}
+
+unsigned int signature_beta_compliance(gpgme_signature_t s) {
+    return s->beta_compliance;
+}
+
 unsigned int subkey_revoked(gpgme_subkey_t k) {
 	return k->revoked;
 }
@@ -88,6 +96,50 @@ unsigned int subkey_disabled(gpgme_subkey_t k) {
 
 unsigned int subkey_invalid(gpgme_subkey_t k) {
 	return k->invalid;
+}
+
+unsigned int subkey_can_encrypt(gpgme_subkey_t k) {
+	return k->can_encrypt;
+}
+
+unsigned int subkey_can_sign(gpgme_subkey_t k){
+	return k->can_sign;
+}
+
+unsigned int subkey_can_certify(gpgme_subkey_t k){
+	return k->can_certify;
+}
+
+unsigned int subkey_can_authenicate(gpgme_subkey_t k){
+	return k->can_authenticate;
+}
+
+unsigned int subkey_is_qualified(gpgme_subkey_t k){
+	return k->is_qualified;
+}
+
+unsigned int subkey_is_cardkey(gpgme_subkey_t k){
+	return k->is_cardkey;
+}
+
+unsigned int subkey_is_de_vs(gpgme_subkey_t k){
+	return k->is_de_vs;
+}
+
+unsigned int subkey_can_renc(gpgme_subkey_t k){
+	return k->can_renc;
+}
+
+unsigned int subkey_can_timestamp(gpgme_subkey_t k){
+	return k->can_timestamp;
+}
+
+unsigned int subkey_is_group_owned(gpgme_subkey_t k){
+	return k->is_group_owned;
+}
+
+unsigned int subkey_beta_compliance(gpgme_subkey_t k){
+	return k->beta_compliance;
 }
 
 unsigned int subkey_secret(gpgme_subkey_t k) {
