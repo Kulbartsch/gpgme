@@ -458,6 +458,41 @@ func TestContext_Export(t *testing.T) {
 	}
 }
 
+func TestContext_CreateAndDeleteKey(t *testing.T) {
+	ensureVersion(t, "2.", "CreateKey/DeleteKey test requires gpg 2.x")
+
+	homeDir, err := ioutil.TempDir("", "gpgme-create-delete-test")
+	checkError(t, err)
+	defer os.RemoveAll(homeDir)
+
+	ctx, err := New()
+	checkError(t, err)
+	defer ctx.Release()
+
+	checkError(t, ctx.SetEngineInfo(ProtocolOpenPGP, "", homeDir))
+
+	userID := fmt.Sprintf("create-delete-%d@example.com", time.Now().UnixNano())
+	flags := CreateNoPasswd | CreateNoExpire
+	checkError(t, ctx.CreateKey(userID, "default", 0, flags))
+
+	key, err := ctx.GetKey(userID, true)
+	checkError(t, err)
+	if key == nil {
+		t.Fatal("expected created key, got nil")
+	}
+	defer key.Release()
+
+	checkError(t, ctx.DeleteKey(key, true, true))
+
+	_, err = ctx.GetKey(userID, false)
+	if err == nil {
+		t.Fatal("expected key lookup error after deletion, got nil")
+	}
+	if !strings.Contains(err.Error(), "not found") {
+		t.Fatalf("expected not found error after deletion, got: %v", err)
+	}
+}
+
 func TestGetDirInfo(t *testing.T) {
 	dir := GetDirInfo("dirmngr-socket")
 	if len(dir) < 1 {

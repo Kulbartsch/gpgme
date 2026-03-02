@@ -1180,14 +1180,27 @@ func gogpgme_assuan_status_callback(handle unsafe.Pointer, cStatus *C.char, cArg
 	return 0
 }
 
+// ----- key operations on context -----
+
 // ExportModeFlags defines how keys are exported from Export
 type ExportModeFlags uint
 
 const (
-	ExportModeExtern  ExportModeFlags = C.GPGME_EXPORT_MODE_EXTERN
+	// ExportModeExtern sends the output directly to the default keyserver.
+	ExportModeExtern ExportModeFlags = C.GPGME_EXPORT_MODE_EXTERN
+	// ExportModeMinimal exports the smallest possible key. For OpenPGP keys it
+	// removes all signatures except for the latest self-signatures.
 	ExportModeMinimal ExportModeFlags = C.GPGME_EXPORT_MODE_MINIMAL
 )
 
+// Export extracts public keys and returns them in the data object.
+// The output format of the key data returned is determined by the ASCII armor
+// attribute set for the context ctx, or, if that is not set, by the encoding
+// specified for keydata.
+// If *pattern* is empty, all available keys are returned. Otherwise, *pattern*
+// contains an // engine specific expression that is used to limit the list to
+// all keys matching the pattern.
+// *mode* is described above.
 func (c *Context) Export(pattern string, mode ExportModeFlags, data *Data) error {
 	var err error
 	pat := C.CString(pattern)
@@ -1272,6 +1285,104 @@ func (c *Context) Import(keyData *Data) (*ImportResult, error) {
 	}
 	runtime.KeepAlive(c) // for all accesses to res above
 	return importResult, nil
+}
+
+// CreateFlags type for flags for key creation
+type CreateFlags uint
+
+const (
+	// Do not create the key with the default capabilities (key usage) of the
+	// requested algorithm but use those explicitly given by these flags:
+	// “signing”, “encryption”, “certification”, or “authentication”.
+	// The allowed combinations depend on the algorithm.
+	// If any of these flags are set and a default algorithm has been selected
+	// only one key is created in the case of the OpenPGP protocol.
+	CreateSign CreateFlags = C.GPGME_CREATE_SIGN
+	CreateEncr CreateFlags = C.GPGME_CREATE_ENCR
+	CreateCert CreateFlags = C.GPGME_CREATE_CERT
+	CreateAuth CreateFlags = C.GPGME_CREATE_AUTH
+	// Request generation of the key without password protection.
+	CreateNoPasswd CreateFlags = C.GPGME_CREATE_NOPASSWD
+	/*
+		// For an X.509 key do not create a CSR but a self-signed certificate. This
+		// has not yet been implemented.
+		CreateSelfSigned CreateFlags = C.GPGME_CREATE_SELFSIGNED
+		// Do not store the created key in the local key database. This has not yet
+		// been implemented.
+		CreateNoStore CreateFlags = C.GPGME_CREATE_NOSTORE
+		// Return the public or secret key as part of the result structure. This has
+		// not yet been implemented.
+		CreateWantPub CreateFlags = C.GPGME_CREATE_WANTPUB
+		CreateWantSec CreateFlags = C.GPGME_CREATE_WANTSEC
+		// The engine does not allow the creation of a key with a user ID already
+		// existing in the local key database. This flag can be used to override this
+		// check.
+		CreateForce CreateFlags = C.GPGME_CREATE_FORCE
+	*/
+	// Request generation of keys that do not expire.
+	CreateNoExpire CreateFlags = C.GPGME_CREATE_NOEXPIRE
+	// Add an ADSK to the key. With this flag algo is expected to be the
+	// hexified fingerprint of the ADSK to be added; this must be a subkey. If
+	// the string "default" is used for algo the engine will add all ADSK as it
+	// would do for new keys.
+	CreateADSK CreateFlags = C.GPGME_CREATE_ADSK
+	// Set the “group owned” flag for the new generated key or subkey.
+	// Since: 2.0.0
+	CreateGroup CreateFlags = C.GPGME_CREATE_GROUP
+)
+
+// CreateKey generates a new key for the procotol active in the
+// *userid* is commonly the mail address associated with the key. GPGME does not
+// require a specific syntax but if more than a mail address is given, RFC-822 style
+// format is suggested. The value is expected to be in UTF-8 encoding (i.e., no IDN
+// encoding for mail addresses). This is a required parameter.
+// *algo* specifies the algorithm for the new key (actually a keypair of public and private
+// key). For a list of supported algorithms, see the GnuPG manual. If algo is empty or
+// the string "default", the key is generated using the default algorithm of the engine. If
+// the string "future-default" is used the engine may use an algorithm which is planned
+// to be the default in a future release of the engine; however existing implementation
+// of the protocol may not be able to already handle such future algorithms. For the
+// OpenPGP protocol, the specification of a default algorithm, without requesting a
+// non-default usage via flags, triggers the creation of a primary key plus a secondary
+// key (subkey).
+// *expires* specifies the duration until expiration.
+// Use the flag GPGME_CREATE_NOEXPIRE to create keys that do not expire.
+// Note further that the OpenPGP protocol uses 32 bit values for timestamps and
+// thus can only encode dates up to the year 2106.
+// *flags* can be set to the bit-wise OR of the following flags
+func (c *Context) CreateKey(userid string, algo string, expires time.Duration,
+	flags CreateFlags) (err error) {
+
+	uid := C.CString(userid)
+	defer C.free(unsafe.Pointer(uid))
+	algoC := C.CString(algo)
+	defer C.free(unsafe.Pointer(algoC))
+	expiresOn := uint64(time.Now().Add(expires).Unix())
+	err = handleError(C.gpgme_op_createkey(c.ctx, uid, algoC, 0,
+		C.ulong(expiresOn), nil, C.uint(flags)))
+	runtime.KeepAlive(c)
+	return err
+}
+
+// IDEA: implement CreateSubkey, AddUID, RevokeUID, ..
+
+// DeleteKey deletes the key key from the key ring of the crypto engine used
+// by Context.
+// *deleteSecret* specifies whether the secret key should also be deleted as
+// well, if it exists.
+// If *force* is set, the user is not asked to confirm the deletion.
+func (c *Context) DeleteKey(key *Key, deleteSecret, force bool) (err error) {
+	var flags C.uint
+	if deleteSecret {
+		flags |= C.GPGME_DELETE_ALLOW_SECRET
+	}
+	if force {
+		flags |= C.GPGME_DELETE_FORCE
+	}
+	err = handleError(C.gpgme_op_delete_ext(c.ctx, key.k, flags))
+	runtime.KeepAlive(c)
+	runtime.KeepAlive(key)
+	return err
 }
 
 // ----- key -----
@@ -1478,6 +1589,7 @@ func (k *SubKey) IsDeVS() bool {
 	return C.subkey_is_de_vs(k.k) != 0
 }
 
+// CanREnc is true if the subkey can be used for restricted encryption. (ADSK)
 func (k *SubKey) CanREnc() bool {
 	return C.subkey_can_renc(k.k) != 0
 }
@@ -1486,6 +1598,8 @@ func (k *SubKey) CanTimestamp() bool {
 	return C.subkey_can_timestamp(k.k) != 0
 }
 
+// IsGroupOwneds is true if the private key or subkey is possessed by more than
+// oneerson. Such a key is often called a “team key”.
 func (k *SubKey) IsGroupOwned() bool {
 	return C.subkey_is_group_owned(k.k) != 0
 }
@@ -1500,6 +1614,16 @@ func (k *SubKey) Secret() bool {
 	return C.subkey_secret(k.k) != 0
 }
 
+/* TODO: implement
+// This is the public key algorithm supported by this subkey.
+// gpgme_pubkey_algo_t pubkey_algo
+Algo
+
+// This is the length of the subkey (in bits)
+// unsigned int length
+KeyLength
+*/
+
 func (k *SubKey) KeyID() string {
 	return C.GoString(k.k.keyid)
 }
@@ -1507,6 +1631,12 @@ func (k *SubKey) KeyID() string {
 func (k *SubKey) Fingerprint() string {
 	return C.GoString(k.k.fpr)
 }
+
+// FingerprintV5 returns the v5 fingerprint of the subkey
+// TODO: FingerprintV5 for a v4 OpenPGP key this is its v5 style fingerprint of
+// the subkey in hexadecimal digits, if available.
+
+// TODO: Keygrip of the subkey in hex digit form or NULL if not available.
 
 func (k *SubKey) Created() time.Time {
 	if k.k.timestamp <= 0 {
@@ -1522,9 +1652,13 @@ func (k *SubKey) Expires() time.Time {
 	return time.Unix(int64(k.k.expires), 0)
 }
 
+//TODO: IsCardKey is True if the secret key is stored on a smart card.
+
 func (k *SubKey) CardNumber() string {
 	return C.GoString(k.k.card_number)
 }
+
+// TODO: Curve for ECC algorithms the name of the curve.
 
 // ----- User ID -----
 
