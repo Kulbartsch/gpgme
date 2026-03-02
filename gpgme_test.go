@@ -108,10 +108,9 @@ func TestEngineInfo(t *testing.T) {
 }
 
 func ctxWithCallback(t *testing.T) *Context {
-	ensureVersion(t, "1.", "can only set password callback for GPG v1.x")
-
 	ctx, err := New()
 	checkError(t, err)
+	checkError(t, ctx.SetPinEntryMode(PinEntryLoopback))
 
 	checkError(t, ctx.SetCallback(func(uid_hint string, prev_was_bad bool, f *os.File) error {
 		if prev_was_bad {
@@ -528,6 +527,38 @@ func TestSubKey_Accessors(t *testing.T) {
 	}
 	if keygrip := sub.Keygrip(); keygrip != "" && !isHexString(keygrip) {
 		t.Fatalf("expected Keygrip to be hex when set, got %q", keygrip)
+	}
+	if sub.IsCardKey() != sub.IsCardkey() {
+		t.Fatalf("expected IsCardKey and IsCardkey to be equal: %t vs %t", sub.IsCardKey(), sub.IsCardkey())
+	}
+	if curve := sub.Curve(); (sub.Algo() == PubkeyAlgoECC || sub.Algo() == PubkeyAlgoECDSA || sub.Algo() == PubkeyAlgoECDH || sub.Algo() == PubkeyAlgoEDDSA) && curve == "" {
+		t.Fatalf("expected non-empty curve name for ECC subkey algorithm %d", sub.Algo())
+	}
+}
+
+func TestKeySig_Accessors(t *testing.T) {
+	ctx, err := New()
+	checkError(t, err)
+	defer ctx.Release()
+	checkError(t, ctx.SetKeyListMode(KeyListModeSigs))
+
+	key, err := ctx.GetKey("test@example.com", false)
+	checkError(t, err)
+	defer key.Release()
+
+	var sig *KeySig
+	for uid := key.UserIDs(); uid != nil; uid = uid.Next() {
+		sig = uid.Signatures()
+		if sig != nil {
+			break
+		}
+	}
+	if sig == nil {
+		t.Fatal("expected at least one user ID signature (with KeyListModeSigs)")
+	}
+
+	if PubkeyAlgoName(sig.PubkeyAlgo()) == "" {
+		t.Fatalf("expected key signature pubkey algo to be known, got %d", sig.PubkeyAlgo())
 	}
 }
 

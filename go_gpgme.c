@@ -170,6 +170,10 @@ unsigned int key_sig_exportable(gpgme_key_sig_t s) {
 	return s->exportable;
 }
 
+unsigned int key_sig_pubkey_algo(gpgme_key_sig_t s) {
+	return (unsigned int)s->pubkey_algo;
+}
+
 unsigned int decrypt_result_wrong_key_usage(gpgme_decrypt_result_t r) {
 	return r->wrong_key_usage;
 }

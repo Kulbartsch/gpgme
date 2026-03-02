@@ -55,6 +55,7 @@ extern unsigned int key_sig_revoked(gpgme_key_sig_t s);
 extern unsigned int key_sig_expired(gpgme_key_sig_t s);
 extern unsigned int key_sig_invalid(gpgme_key_sig_t s);
 extern unsigned int key_sig_exportable(gpgme_key_sig_t s);
+extern unsigned int key_sig_pubkey_algo(gpgme_key_sig_t s);
 extern unsigned int decrypt_result_wrong_key_usage(gpgme_decrypt_result_t r);
 extern unsigned int decrypt_result_legacy_cipher(gpgme_decrypt_result_t r);
 extern unsigned int decrypt_result_is_mime(gpgme_decrypt_result_t r);
