@@ -482,6 +482,17 @@ func TestContext_CreateAndDeleteKey(t *testing.T) {
 	}
 	defer key.Release()
 
+	sub := key.SubKeys()
+	if sub == nil {
+		t.Fatal("expected created key to have at least one subkey")
+	}
+	if sub.KeyLength() == 0 {
+		t.Fatal("expected subkey key length > 0")
+	}
+	if PubkeyAlgoName(sub.Algo()) == "" {
+		t.Fatalf("expected subkey algo to be known, got %d", sub.Algo())
+	}
+
 	checkError(t, ctx.DeleteKey(key, true, true))
 
 	_, err = ctx.GetKey(userID, false)
@@ -490,6 +501,33 @@ func TestContext_CreateAndDeleteKey(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "not found") {
 		t.Fatalf("expected not found error after deletion, got: %v", err)
+	}
+}
+
+func TestSubKey_Accessors(t *testing.T) {
+	ctx, err := New()
+	checkError(t, err)
+	defer ctx.Release()
+
+	key, err := ctx.GetKey("test@example.com", false)
+	checkError(t, err)
+	defer key.Release()
+
+	sub := key.SubKeys()
+	if sub == nil {
+		t.Fatal("expected key to have at least one subkey")
+	}
+	if sub.KeyLength() == 0 {
+		t.Fatal("expected subkey key length > 0")
+	}
+	if PubkeyAlgoName(sub.Algo()) == "" {
+		t.Fatalf("expected subkey algo to be known, got %d", sub.Algo())
+	}
+	if fprV5 := sub.FingerprintV5(); fprV5 != "" && !isHexString(fprV5) {
+		t.Fatalf("expected FingerprintV5 to be hex when set, got %q", fprV5)
+	}
+	if keygrip := sub.Keygrip(); keygrip != "" && !isHexString(keygrip) {
+		t.Fatalf("expected Keygrip to be hex when set, got %q", keygrip)
 	}
 }
 
@@ -643,4 +681,17 @@ func absTestGPGHome() string {
 		panic(err)
 	}
 	return f
+}
+
+func isHexString(s string) bool {
+	for _, r := range s {
+		switch {
+		case r >= '0' && r <= '9':
+		case r >= 'a' && r <= 'f':
+		case r >= 'A' && r <= 'F':
+		default:
+			return false
+		}
+	}
+	return true
 }

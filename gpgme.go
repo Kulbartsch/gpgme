@@ -1614,15 +1614,13 @@ func (k *SubKey) Secret() bool {
 	return C.subkey_secret(k.k) != 0
 }
 
-/* TODO: implement
-// This is the public key algorithm supported by this subkey.
-// gpgme_pubkey_algo_t pubkey_algo
-Algo
+func (k *SubKey) Algo() PubkeyAlgo {
+	return PubkeyAlgo(k.k.pubkey_algo)
+}
 
-// This is the length of the subkey (in bits)
-// unsigned int length
-KeyLength
-*/
+func (k *SubKey) KeyLength() uint {
+	return uint(k.k.length)
+}
 
 func (k *SubKey) KeyID() string {
 	return C.GoString(k.k.keyid)
@@ -1632,11 +1630,16 @@ func (k *SubKey) Fingerprint() string {
 	return C.GoString(k.k.fpr)
 }
 
-// FingerprintV5 returns the v5 fingerprint of the subkey
-// TODO: FingerprintV5 for a v4 OpenPGP key this is its v5 style fingerprint of
-// the subkey in hexadecimal digits, if available.
+// FingerprintV5 returns the v5 style fingerprint of the subkey in hexadecimal
+// digits, if available.
+func (k *SubKey) FingerprintV5() string {
+	return C.GoString(k.k.v5fpr)
+}
 
-// TODO: Keygrip of the subkey in hex digit form or NULL if not available.
+// Keygrip returns the keygrip of the subkey in hex digit form, if available.
+func (k *SubKey) Keygrip() string {
+	return C.GoString(k.k.keygrip)
+}
 
 func (k *SubKey) Created() time.Time {
 	if k.k.timestamp <= 0 {
