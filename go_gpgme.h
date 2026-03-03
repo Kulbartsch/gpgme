@@ -61,5 +61,8 @@ extern unsigned int decrypt_result_legacy_cipher(gpgme_decrypt_result_t r);
 extern unsigned int decrypt_result_is_mime(gpgme_decrypt_result_t r);
 extern unsigned int decrypt_result_is_restricted(gpgme_decrypt_result_t r);
 extern unsigned int decrypt_result_beta_compliance(gpgme_decrypt_result_t r);
+extern unsigned int genkey_result_primary_key_generated(gpgme_genkey_result_t r);
+extern unsigned int genkey_result_subkey_generated(gpgme_genkey_result_t r);
+extern unsigned int genkey_result_user_id_generated(gpgme_genkey_result_t r);
 
 #endif

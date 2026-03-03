@@ -1357,11 +1357,34 @@ func (c *Context) CreateKey(userid string, algo string, expires time.Duration,
 	defer C.free(unsafe.Pointer(uid))
 	algoC := C.CString(algo)
 	defer C.free(unsafe.Pointer(algoC))
-	expiresOn := uint64(time.Now().Add(expires).Unix())
+	var expiresOn C.ulong
+	if expires > 0 {
+		expiresOn = C.ulong(expires / time.Second)
+	}
 	err = handleError(C.gpgme_op_createkey(c.ctx, uid, algoC, 0,
-		C.ulong(expiresOn), nil, C.uint(flags)))
+		expiresOn, nil, C.uint(flags)))
 	runtime.KeepAlive(c)
 	return err
+}
+
+// GenKeyResultType
+type GenKeyResultType struct {
+	PrimaryKeyGenerated bool
+	SubKeyGenerated     bool
+	UserIDGenerated     bool
+	Fingerprint         string
+}
+
+func (c *Context) GenKeyResult() GenKeyResultType {
+	res := C.gpgme_op_genkey_result(c.ctx)
+	runtime.KeepAlive(c)
+	// NOTE: c must be live as long as we are accessing res.
+	return GenKeyResultType{
+		PrimaryKeyGenerated: C.genkey_result_primary_key_generated(res) != 0,
+		SubKeyGenerated:     C.genkey_result_subkey_generated(res) != 0,
+		UserIDGenerated:     C.genkey_result_user_id_generated(res) != 0,
+		Fingerprint:         C.GoString(res.fpr),
+	}
 }
 
 // IDEA: implement CreateSubkey, AddUID, RevokeUID, ..

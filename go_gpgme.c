@@ -193,3 +193,15 @@ unsigned int decrypt_result_is_restricted(gpgme_decrypt_result_t r) {
 unsigned int decrypt_result_beta_compliance(gpgme_decrypt_result_t r) {
 	return r->beta_compliance;
 }
+
+unsigned int genkey_result_primary_key_generated(gpgme_genkey_result_t r) {
+	return r->primary;
+}
+
+unsigned int genkey_result_subkey_generated(gpgme_genkey_result_t r) {
+	return r->sub;
+}
+
+unsigned int genkey_result_user_id_generated(gpgme_genkey_result_t r) {
+	return r->uid;
+}
